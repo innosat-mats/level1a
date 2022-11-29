@@ -55,7 +55,7 @@ def get_last_date(
     return dates.max()
 
 
-def get_rac_records(
+def get_ccd_records(
     path_or_bucket: str,
     min_time: Timestamp,
     filesystem: pa.fs.FileSystem = None,
