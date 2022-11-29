@@ -14,7 +14,8 @@ Context = Any
 last_date: Optional[Timestamp] = None
 DEFAULT_START = Timestamp(2022, 11, 20, tzinfo=timezone.utc)
 OFFSET_MINUTES = 5
-s3  = pa.fs.S3FileSystem(region="eu-north-1")
+LOOKBACK_DAYS = 3
+
 
 RAC_PREFIXES = {"CCD", "CPRU", "HTR", "PM", "PWR", "STAT", "TCV"}
 PLATFORM_PREFIXES = {
@@ -24,10 +25,10 @@ PLATFORM_PREFIXES = {
 
 CCD_COLUMNS = [
     "BadColumns", "CCDSEL", "EXPDate", "EXPNanoseconds", "FBINOV", "FRAME",
-    "GAINMode", "GAINTiming", "GAINTruncation","JPEGQ","LBLNK", "NBC",
+    "GAINMode", "GAINTiming", "GAINTruncation", "JPEGQ", "LBLNK", "NBC",
     "NCBINCCDColumns", "NCBINFPGAColumns", "NCOL", "NCSKIP", "NFLUSH", "NRBIN",
-    "NROW",  "NRSKIP","TBLNK", "TEMP", "TEXPMS",  "TIMING1", "TIMING2",
-    "TIMING3", "VERSION", "WDWInputDataWindow", "WDWMode", "WDWOV","ZERO",
+    "NROW", "NRSKIP", "TBLNK", "TEMP", "TEXPMS",  "TIMING1", "TIMING2",
+    "TIMING3", "VERSION", "WDWInputDataWindow", "WDWMode", "WDWOV", "ZERO",
 ]
 schema = pa.schema([
     ("EXPDate", pa.timestamp('ns'))
@@ -113,6 +114,7 @@ def get_attitude_records(
     dataset.index = dataset.index.tz_localize('utc')
     return dataset
 
+
 def get_search_bounds(
     timeinds: DatetimeIndex
 ) -> Tuple[np.datetime64, np.datetime64]:
@@ -121,12 +123,14 @@ def get_search_bounds(
         timeinds.max().asm8 + np.timedelta64(OFFSET_MINUTES, 'm')
     )
 
+
 def select_nearest(df: DataFrame, datetimes: DatetimeIndex) -> DataFrame:
     ds = df.iloc[
         df.index.get_indexer(datetimes, method='nearest')
     ]
     ds.index = datetimes
     return ds
+
 
 def get_filename(timeinds: DatetimeIndex) -> str:
     return "".join([
@@ -139,14 +143,13 @@ def get_filename(timeinds: DatetimeIndex) -> str:
 
 
 def lambda_handler(event: Event, context: Context):
-    target_bucket = get_or_raise("TARGET_BUCKET")
+    output_bucket = get_or_raise("OUTPUT_BUCKET")
     rac_bucket = get_or_raise("RAC_BUCKET")
     platform_bucket = get_or_raise("PLATFORM_BUCKET")
     region = os.environ.get('AWS_REGION', "eu-north-1")
-    lookback = int(os.environ.get('LOOKBACK_DAYS', 3))
-    target_bucket = "/home/erik/mats/level1a/target"
+    s3 = pa.fs.S3FileSystem(region=region)
 
-    target_dataset = ds.dataset(target_bucket, filesystem=s3)
+    target_dataset = ds.dataset(output_bucket, filesystem=s3)
 
     last_date = None
 
@@ -154,7 +157,7 @@ def lambda_handler(event: Event, context: Context):
         last_date
         or get_last_date(
             target_dataset,
-            Timestamp.now(tz=timezone.utc) - Timedelta(days=lookback),
+            Timestamp.now(tz=timezone.utc) - Timedelta(days=LOOKBACK_DAYS),
         )
         or DEFAULT_START
     )
@@ -188,7 +191,7 @@ def lambda_handler(event: Event, context: Context):
 
     pq.write_to_dataset(
         table=[out_table],
-        root_path=target_bucket,
+        root_path=output_bucket,
         basename_template=get_filename(rac_df.index),
         existing_data_behavior="overwrite_or_ignore",
         filesystem=s3,
