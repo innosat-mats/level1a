@@ -155,6 +155,10 @@ def lambda_handler(event: Event, context: Context):
             target_dataset,
             Timestamp.now(tz=timezone.utc) - Timedelta(days=LOOKBACK_DAYS),
         )
+        or get_last_date(
+            target_dataset,
+            DEFAULT_START,
+        )
         or DEFAULT_START
     )
 
