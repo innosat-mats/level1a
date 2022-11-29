@@ -140,6 +140,7 @@ def get_filename(timeinds: DatetimeIndex) -> str:
 
 
 def lambda_handler(event: Event, context: Context):
+    global last_date
     output_bucket = get_or_raise("OUTPUT_BUCKET")
     rac_bucket = get_or_raise("RAC_BUCKET")
     platform_bucket = get_or_raise("PLATFORM_BUCKET")
