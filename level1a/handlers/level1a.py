@@ -148,8 +148,6 @@ def lambda_handler(event: Event, context: Context):
 
     target_dataset = ds.dataset(output_bucket, filesystem=s3)
 
-    last_date = None
-
     last_date = (
         last_date
         or get_last_date(
