@@ -1,0 +1,23 @@
+name: Level1A CI
+
+on: [push]
+
+jobs:
+    api:
+        runs-on: ubuntu-latest
+        steps:
+        - uses: actions/checkout@v2
+
+        - name: Setup Python
+          uses: actions/setup-python@v2
+          with:
+            python-version: 3.9
+
+        - name: Install General Dependencies
+          run: |
+            python3.9 -m pip install --upgrade pip
+            pip install tox
+
+        - name: Run unit tests
+          run: |
+            tox
