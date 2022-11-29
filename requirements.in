@@ -1,0 +1,4 @@
+aws-cdk-lib
+aws-cdk.aws-lambda-python-alpha
+pandas
+pyarrow
