@@ -19,7 +19,7 @@ Context = Any
 
 last_date: Optional[Timestamp] = None
 DEFAULT_START = Timestamp(2022, 11, 20, tzinfo=timezone.utc)
-OFFSET_MINUTES = 5
+OFFSET_SECONDS = 30
 LOOKBACK_DAYS = 3
 RAC_PREFIXES = {"CCD", "CPRU", "HTR", "PM", "PWR", "STAT", "TCV"}
 PLATFORM_PREFIXES = {
@@ -116,8 +116,8 @@ def get_search_bounds(
     timeinds: DatetimeIndex
 ) -> Tuple[np.datetime64, np.datetime64]:
     return (
-        timeinds.min().asm8 - np.timedelta64(OFFSET_MINUTES, 'm'),
-        timeinds.max().asm8 + np.timedelta64(OFFSET_MINUTES, 'm')
+        timeinds.min().asm8 - np.timedelta64(OFFSET_SECONDS, 's'),
+        timeinds.max().asm8 + np.timedelta64(OFFSET_SECONDS, 's')
     )
 
 
@@ -162,7 +162,7 @@ def lambda_handler(event: Event, context: Context):
         or DEFAULT_START
     )
 
-    rac_df = get_rac_records(
+    rac_df = get_ccd_records(
         rac_bucket,
         last_date,
         filesystem=s3,

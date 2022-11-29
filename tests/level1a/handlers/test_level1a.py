@@ -7,11 +7,11 @@ import pandas as pd  # type: ignore
 import pytest  # type: ignore
 from level1a.handlers.level1a import (
     get_attitude_records,
+    get_ccd_records,
     get_filename,
     get_last_date,
     get_or_raise,
     get_orbit_records,
-    get_rac_records,
     get_search_bounds,
     select_nearest,
 )
@@ -70,8 +70,8 @@ def test_get_last_date_handles_empty_dataset(empty_dataset):
         ],
     ),
 ))
-def test_get_rac_records(rac_dir, min_time, inds):
-    out = get_rac_records(rac_dir, min_time)
+def test_get_ccd_records(rac_dir, min_time, inds):
+    out = get_ccd_records(rac_dir, min_time)
     pd.testing.assert_index_equal(
         out.index,
         pd.DatetimeIndex(inds, dtype='datetime64[ns, UTC]', name='EXPDate')
@@ -133,8 +133,8 @@ def test_get_search_bounds():
         '2022-11-22 08:33:38.175216675+00:00',
     ])
     assert get_search_bounds(timeinds) == (
-        np.datetime64('2022-11-22 08:27:54.521820068+00:00'),
-        np.datetime64('2022-11-22 08:40:24.056808472+00:00'),
+        np.datetime64('2022-11-22 08:32:24.521820068+00:00'),
+        np.datetime64('2022-11-22 08:35:54.056808472+00:00'),
     )
 
 
