@@ -3,10 +3,16 @@ from datetime import timezone
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
-import pyarrow as pa
-import pyarrow.dataset as ds
-import pyarrow.parquet as pq
-from pandas import DataFrame, DatetimeIndex, Timedelta, Timestamp, concat
+import pyarrow as pa  # type: ignore
+import pyarrow.dataset as ds  # type: ignore
+import pyarrow.parquet as pq  # type: ignore
+from pandas import (  # type: ignore
+    DataFrame,
+    DatetimeIndex,
+    Timedelta,
+    Timestamp,
+    concat,
+)
 
 Event = Dict[str, Any]
 Context = Any
@@ -15,21 +21,12 @@ last_date: Optional[Timestamp] = None
 DEFAULT_START = Timestamp(2022, 11, 20, tzinfo=timezone.utc)
 OFFSET_MINUTES = 5
 LOOKBACK_DAYS = 3
-
-
 RAC_PREFIXES = {"CCD", "CPRU", "HTR", "PM", "PWR", "STAT", "TCV"}
 PLATFORM_PREFIXES = {
     "HK_ecPowOps_1", "PreciseAttitudeEstimation", "PreciseOrbitEstimation",
     "scoCurrentScMode", "TM_acGnssOps", "TM_afAcsHiRateAttitudeData",
 }
 
-CCD_COLUMNS = [
-    "BadColumns", "CCDSEL", "EXPDate", "EXPNanoseconds", "FBINOV", "FRAME",
-    "GAINMode", "GAINTiming", "GAINTruncation", "JPEGQ", "LBLNK", "NBC",
-    "NCBINCCDColumns", "NCBINFPGAColumns", "NCOL", "NCSKIP", "NFLUSH", "NRBIN",
-    "NROW", "NRSKIP", "TBLNK", "TEMP", "TEXPMS",  "TIMING1", "TIMING2",
-    "TIMING3", "VERSION", "WDWInputDataWindow", "WDWMode", "WDWOV", "ZERO",
-]
 schema = pa.schema([
     ("EXPDate", pa.timestamp('ns'))
 ])
