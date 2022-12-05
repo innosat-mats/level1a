@@ -27,10 +27,6 @@ PLATFORM_PREFIXES = {
     "scoCurrentScMode", "TM_acGnssOps", "TM_afAcsHiRateAttitudeData",
 }
 
-schema = pa.schema([
-    ("EXPDate", pa.timestamp('ns'))
-])
-
 
 def get_or_raise(variable_name: str) -> str:
     if (var := os.environ.get(variable_name)) is None:
