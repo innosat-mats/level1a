@@ -82,7 +82,7 @@ def get_orbit_records(
         ])
     ).to_table(
         filter=(ds.field('time') >= min_time) & (ds.field('time') <= max_time)
-    ).to_pandas().set_index("time").sort_index()
+    ).to_pandas().drop_duplicates("time").set_index("time").sort_index()
     dataset.index = dataset.index.tz_localize('utc')
     return dataset
 
@@ -103,7 +103,7 @@ def get_attitude_records(
         ])
     ).to_table(
         filter=(ds.field('time') >= min_time) & (ds.field('time') <= max_time)
-    ).to_pandas().set_index("time").sort_index()
+    ).to_pandas().drop_duplicates("time").set_index("time").sort_index()
     dataset.index = dataset.index.tz_localize('utc')
     return dataset
 

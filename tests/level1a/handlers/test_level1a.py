@@ -82,17 +82,17 @@ def test_get_ccd_records(rac_dir, min_time, inds):
     (
         np.datetime64("2022-11-01T00:00:00"),
         np.datetime64("2022-12-01T00:00:00"),
-        57347
+        57230
     ),
     (
         np.datetime64("2022-11-22T12:00:00"),
         np.datetime64("2022-12-01T00:00:00"),
-        14147
+        14105
     ),
     (
         np.datetime64("2022-11-22T12:00:00"),
         np.datetime64("2022-11-22T13:00:00"),
-        3603
+        3598
     ),
 ))
 def test_get_orbit_records(platform_dir, min_time, max_time, rows):
