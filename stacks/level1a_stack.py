@@ -1,6 +1,7 @@
 
 from aws_cdk import Duration, Size, Stack
 from aws_cdk.aws_events import Rule, Schedule
+from aws_cdk.aws_events_targets import LambdaFunction
 from aws_cdk.aws_lambda import Architecture, Runtime
 from aws_cdk.aws_lambda_python_alpha import PythonFunction  # type: ignore
 from aws_cdk.aws_s3 import Bucket
@@ -62,7 +63,7 @@ class Level1AStack(Stack):
             "Level1ALambdaSchedule",
             schedule=lambda_schedule,
         )
-        rule.add_target(level1a_lambda)
+        rule.add_target(LambdaFunction(level1a_lambda))
 
         output_bucket.grant_read_write(level1a_lambda)
         rac_bucket.grant_read(level1a_lambda)
