@@ -131,7 +131,7 @@ def select_nearest(df: DataFrame, datetimes: DatetimeIndex) -> DataFrame:
 
 def get_filename(timeinds: DatetimeIndex) -> str:
     return "".join([
-        "MATS_LEVEL1A_",
+        "payload-level1a_",
         timeinds.min().strftime('%Y%m%d-%H%M%S'),
         "_",
         timeinds.max().strftime('%Y%m%d-%H%M%S'),
