@@ -12,6 +12,7 @@ from level1a.handlers.level1a import (
     get_last_date,
     get_or_raise,
     get_orbit_records,
+    get_partitioned_dates,
     get_search_bounds,
     select_nearest,
 )
@@ -82,17 +83,17 @@ def test_get_ccd_records(rac_dir, min_time, inds):
     (
         np.datetime64("2022-11-01T00:00:00"),
         np.datetime64("2022-12-01T00:00:00"),
-        57347
+        57230
     ),
     (
         np.datetime64("2022-11-22T12:00:00"),
         np.datetime64("2022-12-01T00:00:00"),
-        14147
+        14105
     ),
     (
         np.datetime64("2022-11-22T12:00:00"),
         np.datetime64("2022-11-22T13:00:00"),
-        3603
+        3598
     ),
 ))
 def test_get_orbit_records(platform_dir, min_time, max_time, rows):
@@ -166,9 +167,25 @@ def test_select_nearest():
     )
 
 
+def test_get_partitioned_dates():
+    datetimes = pd.DatetimeIndex([
+        '2022-11-01',
+        '2022-11-02',
+        '2022-11-03',
+    ])
+    pd.testing.assert_frame_equal(
+        get_partitioned_dates(datetimes),
+        pd.DataFrame({
+            'year': [2022, 2022, 2022],
+            'month': [11, 11, 11],
+            'day': [1, 2, 3],
+        }, index=datetimes)
+    )
+
+
 def test_get_filename():
     assert get_filename(pd.DatetimeIndex([
         '2022-11-01',
         '2022-11-02',
         '2022-11-03',
-    ])) == "MATS_LEVEL1A_20221101-000000_20221103-000000_{i}.parquet"
+    ])) == "payload-level1a_20221101-000000_20221103-000000_{i}.parquet"

@@ -27,10 +27,6 @@ PLATFORM_PREFIXES = {
     "scoCurrentScMode", "TM_acGnssOps", "TM_afAcsHiRateAttitudeData",
 }
 
-schema = pa.schema([
-    ("EXPDate", pa.timestamp('ns'))
-])
-
 
 def get_or_raise(variable_name: str) -> str:
     if (var := os.environ.get(variable_name)) is None:
@@ -86,7 +82,7 @@ def get_orbit_records(
         ])
     ).to_table(
         filter=(ds.field('time') >= min_time) & (ds.field('time') <= max_time)
-    ).to_pandas().set_index("time").sort_index()
+    ).to_pandas().drop_duplicates("time").set_index("time").sort_index()
     dataset.index = dataset.index.tz_localize('utc')
     return dataset
 
@@ -107,7 +103,7 @@ def get_attitude_records(
         ])
     ).to_table(
         filter=(ds.field('time') >= min_time) & (ds.field('time') <= max_time)
-    ).to_pandas().set_index("time").sort_index()
+    ).to_pandas().drop_duplicates("time").set_index("time").sort_index()
     dataset.index = dataset.index.tz_localize('utc')
     return dataset
 
@@ -129,9 +125,17 @@ def select_nearest(df: DataFrame, datetimes: DatetimeIndex) -> DataFrame:
     return ds
 
 
+def get_partitioned_dates(datetimes: DatetimeIndex) -> DataFrame:
+    return DataFrame({
+        'year': datetimes.year,
+        'month': datetimes.month,
+        'day': datetimes.day,
+    }, index=datetimes)
+
+
 def get_filename(timeinds: DatetimeIndex) -> str:
     return "".join([
-        "MATS_LEVEL1A_",
+        "payload-level1a_",
         timeinds.min().strftime('%Y%m%d-%H%M%S'),
         "_",
         timeinds.max().strftime('%Y%m%d-%H%M%S'),
@@ -184,8 +188,9 @@ def lambda_handler(event: Event, context: Context):
     )
     attitude_subset = select_nearest(attitude_df, rac_df.index)
     orbit_subset = select_nearest(orbit_df, rac_df.index)
+    partitioned_dates = get_partitioned_dates(rac_df.index)
     out_table = pa.Table.from_pandas(concat(
-        [rac_df, attitude_subset, orbit_subset],
+        [rac_df, attitude_subset, orbit_subset, partitioned_dates],
         axis=1,
     ))
 
