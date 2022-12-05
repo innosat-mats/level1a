@@ -9,9 +9,9 @@ app = App()
 Level1AStack(
     app,
     "Level1AStack",
-    rac_bucket_name="mats-l0-artifacts",
-    platform_bucket_name="mats-l1a-platform-parquet",
-    output_bucket_name="mats-l1a",
+    rac_bucket_name="ops-payload-level0-v0.1",
+    platform_bucket_name="ops-platform-level1a-v0.1",
+    output_bucket_name="ops-payload-level1a-v0.1",
 )
 
 app.synth()
