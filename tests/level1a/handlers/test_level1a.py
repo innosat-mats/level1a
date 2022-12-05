@@ -12,6 +12,7 @@ from level1a.handlers.level1a import (
     get_last_date,
     get_or_raise,
     get_orbit_records,
+    get_partitioned_dates,
     get_search_bounds,
     select_nearest,
 )
@@ -163,6 +164,22 @@ def test_select_nearest():
                 '2022-11-03',
             ])
         )
+    )
+
+
+def test_get_partitioned_dates():
+    datetimes = pd.DatetimeIndex([
+        '2022-11-01',
+        '2022-11-02',
+        '2022-11-03',
+    ])
+    pd.testing.assert_frame_equal(
+        get_partitioned_dates(datetimes),
+        pd.DataFrame({
+            'year': [2022, 2022, 2022],
+            'month': [11, 11, 11],
+            'day': [1, 2, 3],
+        }, index=datetimes)
     )
 
 

@@ -125,6 +125,14 @@ def select_nearest(df: DataFrame, datetimes: DatetimeIndex) -> DataFrame:
     return ds
 
 
+def get_partitioned_dates(datetimes: DatetimeIndex) -> DataFrame:
+    return DataFrame({
+        'year': datetimes.year,
+        'month': datetimes.month,
+        'day': datetimes.day,
+    }, index=datetimes)
+
+
 def get_filename(timeinds: DatetimeIndex) -> str:
     return "".join([
         "payload-level1a_",
@@ -180,8 +188,9 @@ def lambda_handler(event: Event, context: Context):
     )
     attitude_subset = select_nearest(attitude_df, rac_df.index)
     orbit_subset = select_nearest(orbit_df, rac_df.index)
+    partitioned_dates = get_partitioned_dates(rac_df.index)
     out_table = pa.Table.from_pandas(concat(
-        [rac_df, attitude_subset, orbit_subset],
+        [rac_df, attitude_subset, orbit_subset, partitioned_dates],
         axis=1,
     ))
 
