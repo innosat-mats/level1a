@@ -1,5 +1,5 @@
 
-from aws_cdk import Duration, Stack
+from aws_cdk import Duration, Size, Stack
 from aws_cdk.aws_events import Rule, Schedule
 from aws_cdk.aws_lambda import Architecture, Runtime
 from aws_cdk.aws_lambda_python_alpha import PythonFunction  # type: ignore
@@ -49,6 +49,7 @@ class Level1AStack(Stack):
             architecture=Architecture.X86_64,
             runtime=Runtime.PYTHON_3_9,
             memory_size=512,
+            ephemeral_storage_size=Size.mebibytes(512),
             environment={
                 "RAC_BUCKET": rac_bucket_name,
                 "PLATFORM_BUCKET": platform_bucket_name,
