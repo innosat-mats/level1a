@@ -9,6 +9,7 @@ import pyarrow.parquet as pq  # type: ignore
 from pandas import (  # type: ignore
     DataFrame,
     DatetimeIndex,
+    Series,
     Timedelta,
     Timestamp,
     concat,
@@ -117,12 +118,39 @@ def get_search_bounds(
     )
 
 
-def select_nearest(df: DataFrame, datetimes: DatetimeIndex) -> DataFrame:
-    ds = df.iloc[
-        df.index.get_indexer(datetimes, method='nearest')
-    ]
-    ds.index = datetimes
-    return ds
+def interp_array(
+    eval_ind: float,
+    indices: np.ndarray,
+    values: np.ndarray,
+) -> np.ndarray:
+    diffs = np.abs(eval_ind - indices)
+    if np.min(diffs) == 0:
+        return values[np.argmin(diffs)]
+    dt = np.diff(indices)
+    weights = diffs[::-1]/dt
+    return np.average(values, weights=weights, axis=0)
+
+
+def interp_to(
+    target_date: Timestamp,
+    column: Series,
+) -> np.ndarray:
+    before = column.index.get_indexer([target_date], method='ffill')[0]
+    after = column.index.get_indexer([target_date], method='bfill')[0]
+
+    timestamps = column.index[[before, after]].astype(int).values
+    return interp_array(
+        target_date.value,
+        timestamps,
+        column.iloc[[before, after]].values,
+    )
+
+
+def interpolate(dataframe: DataFrame, target: DatetimeIndex) -> DataFrame:
+    return DataFrame({
+        column: [interp_to(ind, dataframe[column]) for ind in target]
+        for column in dataframe
+    }, index=target)
 
 
 def get_partitioned_dates(datetimes: DatetimeIndex) -> DataFrame:
@@ -186,8 +214,8 @@ def lambda_handler(event: Event, context: Context):
         max_time,
         filesystem=s3,
     )
-    attitude_subset = select_nearest(attitude_df, rac_df.index)
-    orbit_subset = select_nearest(orbit_df, rac_df.index)
+    attitude_subset = interpolate(attitude_df, rac_df.index)
+    orbit_subset = interpolate(orbit_df, rac_df.index)
     partitioned_dates = get_partitioned_dates(rac_df.index)
     out_table = pa.Table.from_pandas(concat(
         [rac_df, attitude_subset, orbit_subset, partitioned_dates],

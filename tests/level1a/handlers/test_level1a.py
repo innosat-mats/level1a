@@ -14,7 +14,8 @@ from level1a.handlers.level1a import (
     get_orbit_records,
     get_partitioned_dates,
     get_search_bounds,
-    select_nearest,
+    interp_array,
+    interpolate,
 )
 
 
@@ -139,14 +140,41 @@ def test_get_search_bounds():
     )
 
 
-def test_select_nearest():
+@pytest.mark.parametrize("eval_point,indices,values,expect", (
+    (
+        1,
+        np.array([1, 2]),
+        np.array([1, 2]),
+        1,
+    ),
+    (
+        2,
+        np.array([1, 3]),
+        np.array([[1, 10, 100], [3, 30, 300]]),
+        np.array([2, 20, 200]),
+    ),
+    (
+        3,
+        np.array([3, 3]),
+        np.array([10, 10]),
+        10,
+    )
+))
+def test_interp_array(eval_point, indices, values, expect):
+    np.testing.assert_array_equal(
+        interp_array(eval_point, indices, values),
+        expect,
+    )
+
+
+def test_interpolate():
     datetimes = pd.DatetimeIndex([
-        '2022-11-01',
-        '2022-11-02',
-        '2022-11-03',
+        '2022-11-01T06:00:00',
+        '2022-11-02T00:00:00',
+        '2022-11-02T18:00:00',
     ])
     dataframe = pd.DataFrame(
-        [1, 2, 3, 4],
+        [1., 2., 3., 4.],
         index=pd.DatetimeIndex([
             '2022-11-01T00:00:00',
             '2022-11-01T12:00:00',
@@ -155,14 +183,10 @@ def test_select_nearest():
         ])
     )
     pd.testing.assert_frame_equal(
-        select_nearest(dataframe, datetimes),
+        interpolate(dataframe, datetimes),
         pd.DataFrame(
-            [1, 3, 4],
-            index=pd.DatetimeIndex([
-                '2022-11-01',
-                '2022-11-02',
-                '2022-11-03',
-            ])
+            [1.5, 3., 3.75],
+            index=datetimes,
         )
     )
 
