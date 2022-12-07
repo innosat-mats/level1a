@@ -1,6 +1,7 @@
+import json
 import os
-from datetime import timezone
-from typing import Any, Dict, Optional, Tuple
+from http import HTTPStatus
+from typing import Any, Dict, Tuple
 
 import numpy as np
 import pyarrow as pa  # type: ignore
@@ -18,15 +19,22 @@ from pandas import (  # type: ignore
 Event = Dict[str, Any]
 Context = Any
 
-last_date: Optional[Timestamp] = None
-DEFAULT_START = Timestamp(2022, 11, 20, tzinfo=timezone.utc)
-OFFSET_SECONDS = 30
-LOOKBACK_DAYS = 3
-RAC_PREFIXES = {"CCD", "CPRU", "HTR", "PM", "PWR", "STAT", "TCV"}
+OFFSET_FACTOR = 2
+ORBIT_FREQUENCY = 0.1
+ATTITUDE_FREQUENCY = 1.
+
 PLATFORM_PREFIXES = {
     "HK_ecPowOps_1", "PreciseAttitudeEstimation", "PreciseOrbitEstimation",
     "scoCurrentScMode", "TM_acGnssOps", "TM_afAcsHiRateAttitudeData",
 }
+
+
+class DoesNotCover(Exception):
+    pass
+
+
+class InvalidMessage(Exception):
+    pass
 
 
 def get_or_raise(variable_name: str) -> str:
@@ -37,39 +45,42 @@ def get_or_raise(variable_name: str) -> str:
     return var
 
 
-def get_last_date(
-    dataset: ds.FileSystemDataset,
-    start: Timestamp,
-) -> Optional[Timestamp]:
+def parse_event_message(event: Event) -> Tuple[str, str]:
     try:
-        dates = dataset.to_table(
-            filter=ds.field('EXPDate') >= start, columns=['EXPDate']
-        )['EXPDate'].to_pandas()
-    except pa.ArrowInvalid:
-        return None
-    if len(dates) == 0:
-        return None
-    return dates.max()
+        message: Dict[str, Any] = json.loads(event["Records"][0]["body"])
+        bucket = message["Records"][0]["s3"]["bucket"]["name"]
+        key = message["Records"][0]["s3"]["object"]["key"]
+    except (KeyError, TypeError):
+        raise InvalidMessage
+    return bucket, key
+
+
+def covers(
+    indices: DatetimeIndex,
+    first: Timestamp,
+    last: Timestamp,
+) -> bool:
+    return not (
+        len(indices) == 0
+        or first < indices.min()
+        or last > indices.max()
+    )
 
 
 def get_ccd_records(
     path_or_bucket: str,
-    min_time: Timestamp,
     filesystem: pa.fs.FileSystem = None,
 ) -> DataFrame:
-    return ds.dataset(
+    return pq.read_table(
         path_or_bucket,
         filesystem=filesystem,
-        ignore_prefixes=list(RAC_PREFIXES - {"CCD"}),
-    ).to_table(
-        filter=ds.field('EXPDate') >= min_time
     ).to_pandas().set_index("EXPDate").sort_index()
 
 
 def get_orbit_records(
     path_or_bucket: str,
-    min_time: np.datetime64,
-    max_time: np.datetime64,
+    min_time: Timestamp,
+    max_time: Timestamp,
     filesystem: pa.fs.FileSystem = None,
 ) -> DataFrame:
     dataset = ds.dataset(
@@ -81,17 +92,18 @@ def get_orbit_records(
             ("afsTangentPoint", pa.list_(pa.float64())),
             ("acsGnssStateJ2000", pa.list_(pa.float64())),
         ])
-    ).to_table(
-        filter=(ds.field('time') >= min_time) & (ds.field('time') <= max_time)
-    ).to_pandas().drop_duplicates("time").set_index("time").sort_index()
+    ).to_table(filter=(
+        (ds.field('time') >= min_time.asm8)
+        & (ds.field('time') <= max_time.asm8)
+    )).to_pandas().drop_duplicates("time").set_index("time").sort_index()
     dataset.index = dataset.index.tz_localize('utc')
     return dataset
 
 
 def get_attitude_records(
     path_or_bucket: str,
-    min_time: np.datetime64,
-    max_time: np.datetime64,
+    min_time: Timestamp,
+    max_time: Timestamp,
     filesystem: pa.fs.FileSystem = None,
 ) -> DataFrame:
     dataset = ds.dataset(
@@ -102,20 +114,22 @@ def get_attitude_records(
             ("time", pa.timestamp('ns')),
             ("afsAttitudeState", pa.list_(pa.float64())),
         ])
-    ).to_table(
-        filter=(ds.field('time') >= min_time) & (ds.field('time') <= max_time)
-    ).to_pandas().drop_duplicates("time").set_index("time").sort_index()
+    ).to_table(filter=(
+        (ds.field('time') >= min_time.asm8)
+        & (ds.field('time') <= max_time.asm8)
+    )).to_pandas().drop_duplicates("time").set_index("time").sort_index()
     dataset.index = dataset.index.tz_localize('utc')
     return dataset
 
 
 def get_search_bounds(
     timeinds: DatetimeIndex
-) -> Tuple[np.datetime64, np.datetime64]:
-    return (
-        timeinds.min().asm8 - np.timedelta64(OFFSET_SECONDS, 's'),
-        timeinds.max().asm8 + np.timedelta64(OFFSET_SECONDS, 's')
-    )
+) -> Tuple[Timestamp, Timestamp]:
+    return timeinds.min(), timeinds.max()
+
+
+def get_offset(frequency: float) -> Timedelta:
+    return OFFSET_FACTOR*Timedelta(seconds=1/frequency)
 
 
 def interp_array(
@@ -153,50 +167,34 @@ def interpolate(dataframe: DataFrame, target: DatetimeIndex) -> DataFrame:
     }, index=target)
 
 
-def get_partitioned_dates(datetimes: DatetimeIndex) -> DataFrame:
-    return DataFrame({
-        'year': datetimes.year,
-        'month': datetimes.month,
-        'day': datetimes.day,
-    }, index=datetimes)
-
-
-def get_filename(timeinds: DatetimeIndex) -> str:
-    return "".join([
-        "payload-level1a_",
-        timeinds.min().strftime('%Y%m%d-%H%M%S'),
-        "_",
-        timeinds.max().strftime('%Y%m%d-%H%M%S'),
-        "_{i}.parquet"
-    ])
-
-
 def lambda_handler(event: Event, context: Context):
-    global last_date
     output_bucket = get_or_raise("OUTPUT_BUCKET")
-    rac_bucket = get_or_raise("RAC_BUCKET")
     platform_bucket = get_or_raise("PLATFORM_BUCKET")
     region = os.environ.get('AWS_REGION', "eu-north-1")
     s3 = pa.fs.S3FileSystem(region=region)
 
-    target_dataset = ds.dataset(output_bucket, filesystem=s3)
+    try:
+        bucket, object = parse_event_message(event)
+    except InvalidMessage:
+        return {
+            'statusCode': HTTPStatus.NO_CONTENT,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps({
+                'message': 'Failed to parse event, nothing to do.'
+            })
+        }
 
-    last_date = (
-        last_date
-        or get_last_date(
-            target_dataset,
-            Timestamp.now(tz=timezone.utc) - Timedelta(days=LOOKBACK_DAYS),
-        )
-        or get_last_date(
-            target_dataset,
-            DEFAULT_START,
-        )
-        or DEFAULT_START
-    )
+    if not object.endswith(".parquet"):
+        return {
+            'statusCode': HTTPStatus.NO_CONTENT,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps({
+                'message': f'{object} is not a parquet file, nothing to do.'
+            })
+        }
 
     rac_df = get_ccd_records(
-        rac_bucket,
-        last_date,
+        f"{bucket}/{object}",
         filesystem=s3,
     )
 
@@ -204,38 +202,32 @@ def lambda_handler(event: Event, context: Context):
 
     attitude_df = get_attitude_records(
         platform_bucket,
-        min_time,
-        max_time,
+        min_time - get_offset(ATTITUDE_FREQUENCY),
+        max_time + get_offset(ATTITUDE_FREQUENCY),
         filesystem=s3,
     )
     orbit_df = get_orbit_records(
         platform_bucket,
-        min_time,
-        max_time,
+        min_time - get_offset(ORBIT_FREQUENCY),
+        max_time + get_offset(ORBIT_FREQUENCY),
         filesystem=s3,
     )
+
+    if not covers(attitude_df.index, min_time, max_time):
+        raise DoesNotCover("Attitude data is missing timestamps")
+    if not covers(orbit_df.index, min_time, max_time):
+        raise DoesNotCover("Orbit data is missing timestamps")
+
     attitude_subset = interpolate(attitude_df, rac_df.index)
     orbit_subset = interpolate(orbit_df, rac_df.index)
-    partitioned_dates = get_partitioned_dates(rac_df.index)
     out_table = pa.Table.from_pandas(concat(
-        [rac_df, attitude_subset, orbit_subset, partitioned_dates],
+        [rac_df, attitude_subset, orbit_subset],
         axis=1,
     ))
 
-    pq.write_to_dataset(
-        table=[out_table],
-        root_path=output_bucket,
-        basename_template=get_filename(rac_df.index),
-        existing_data_behavior="overwrite_or_ignore",
+    pq.write_table(
+        out_table,
+        f"{output_bucket}/{object}",
         filesystem=s3,
-        partitioning=ds.partitioning(
-            schema=pa.schema([
-                ('year', pa.int32()),
-                ('month', pa.int32()),
-                ('day', pa.int32()),
-            ]),
-        ),
         version='2.6',
     )
-
-    last_date = rac_df.index.max()
