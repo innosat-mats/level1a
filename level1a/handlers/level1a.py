@@ -227,7 +227,7 @@ def lambda_handler(event: Event, context: Context):
 
     pq.write_table(
         out_table,
-        f"{output_bucket}/{object}",
+        f"{output_bucket}/{object.strip('/CCD')}",
         filesystem=s3,
         version='2.6',
     )
