@@ -60,10 +60,10 @@ def covers(
     first: Timestamp,
     last: Timestamp,
 ) -> bool:
-    return not (
-        len(indices) == 0
-        or first < indices.min()
-        or last > indices.max()
+    return (
+        len(indices) != 0
+        and first >= indices.min()
+        and last <= indices.max()
     )
 
 

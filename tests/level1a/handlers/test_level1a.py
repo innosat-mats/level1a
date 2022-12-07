@@ -56,6 +56,14 @@ def test_parse_event_message():
         pd.Timestamp(2022, 12, 2),
         pd.Timestamp(2022, 12, 3),
         True,
+    ), (  # returns True when first or last is on edge
+        pd.DatetimeIndex([
+            pd.Timestamp(2022, 12, 1),
+            pd.Timestamp(2022, 12, 4),
+        ]),
+        pd.Timestamp(2022, 12, 1),
+        pd.Timestamp(2022, 12, 4),
+        True,
     ), (  # returns False when first is early
         pd.DatetimeIndex([
             pd.Timestamp(2022, 12, 1),
