@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import pyarrow.dataset as ds  # type: ignore
 import pytest  # type: ignore
 
 
@@ -20,20 +19,5 @@ def platform_dir(data_dir):
 
 
 @pytest.fixture
-def rac_dataset(rac_dir):
-    return ds.dataset(rac_dir)
-
-
-@pytest.fixture
-def platform_dataset(platform_dir):
-    return ds.dataset(platform_dir)
-
-
-@pytest.fixture
-def output_dataset(data_dir):
-    return ds.dataset(data_dir / "output")
-
-
-@pytest.fixture
-def empty_dataset(data_dir):
-    return ds.dataset(data_dir / "empty")
+def ccd_path(rac_dir):
+    return rac_dir / "CCD" / "2022" / "11" / "22" / "MATS_OPS_Level0_VC1_APID100_20221122-080636_20221122-094142.parquet"  # noqa: E501

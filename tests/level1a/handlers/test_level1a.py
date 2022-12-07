@@ -1,21 +1,20 @@
+import json
 import os
-from datetime import timezone
 from unittest.mock import patch
 
 import numpy as np
 import pandas as pd  # type: ignore
 import pytest  # type: ignore
 from level1a.handlers.level1a import (
+    covers,
     get_attitude_records,
     get_ccd_records,
-    get_filename,
-    get_last_date,
     get_or_raise,
     get_orbit_records,
-    get_partitioned_dates,
     get_search_bounds,
     interp_array,
     interpolate,
+    parse_event_message,
 )
 
 
@@ -32,30 +31,69 @@ def test_get_or_raise_raises():
         get_or_raise("DEFINITELYNOT")
 
 
-@pytest.mark.parametrize("start,expect", (
-    (
-        pd.Timestamp(2022, 11, 1, tzinfo=timezone.utc),
-        pd.Timestamp('2022-11-22 08:35:24.056808472+0000', tz='UTC')
-    ),
-    (  # No valid dates returns None
-        pd.Timestamp(2022, 12, 1, tzinfo=timezone.utc),
-        None
+def test_parse_event_message():
+    msg = {
+        "Records": [{
+            "body": json.dumps({
+                "Records": [{
+                    "s3": {
+                        "bucket": {"name": "bucket-name"},
+                        "object": {"key": "object-key"}
+                    }
+                }]
+            }),
+        }],
+    }
+    assert parse_event_message(msg) == ("bucket-name", "object-key")
+
+
+@pytest.mark.parametrize("indices,first,last,expect", (
+    (  # returns True when covers
+        pd.DatetimeIndex([
+            pd.Timestamp(2022, 12, 1),
+            pd.Timestamp(2022, 12, 4),
+        ]),
+        pd.Timestamp(2022, 12, 2),
+        pd.Timestamp(2022, 12, 3),
+        True,
+    ), (  # returns True when first or last is on edge
+        pd.DatetimeIndex([
+            pd.Timestamp(2022, 12, 1),
+            pd.Timestamp(2022, 12, 4),
+        ]),
+        pd.Timestamp(2022, 12, 1),
+        pd.Timestamp(2022, 12, 4),
+        True,
+    ), (  # returns False when first is early
+        pd.DatetimeIndex([
+            pd.Timestamp(2022, 12, 1),
+            pd.Timestamp(2022, 12, 4),
+        ]),
+        pd.Timestamp(2022, 11, 2),
+        pd.Timestamp(2022, 12, 3),
+        False,
+    ), (  # returns False when last is late
+        pd.DatetimeIndex([
+            pd.Timestamp(2022, 12, 1),
+            pd.Timestamp(2022, 12, 4),
+        ]),
+        pd.Timestamp(2022, 12, 2),
+        pd.Timestamp(2023, 1, 3),
+        False,
+    ), (  # returns False when indices is empty
+        pd.DatetimeIndex([]),
+        pd.Timestamp(2022, 11, 2),
+        pd.Timestamp(2022, 12, 3),
+        False,
     ),
 ))
-def test_get_last_date(output_dataset, start, expect):
-    assert get_last_date(output_dataset, start) == expect
+def test_covers(indices, first, last, expect):
+    assert covers(indices, first, last) == expect
 
 
-def test_get_last_date_handles_empty_dataset(empty_dataset):
-    assert get_last_date(
-        empty_dataset,
-        pd.Timestamp(2022, 1, 1, tzinfo=timezone.utc)
-    ) is None
-
-
-@pytest.mark.parametrize("min_time,inds", (
-    (
-        pd.Timestamp(2022, 11, 1, tzinfo=timezone.utc),
+def test_get_ccd_records(ccd_path):
+    out = get_ccd_records(ccd_path)
+    expect_inds = pd.DatetimeIndex(
         [
             '2022-11-22 08:32:54.521820068+00:00',
             '2022-11-22 08:33:11.365371704+00:00',
@@ -63,37 +101,30 @@ def test_get_last_date_handles_empty_dataset(empty_dataset):
             '2022-11-22 08:35:24.056808472+00:00',
             '2022-11-22 08:35:24.056808472+00:00',
         ],
-    ),
-    (
-        pd.Timestamp(2022, 11, 22, 8, 34, tzinfo=timezone.utc),
-        [
-            '2022-11-22 08:35:24.056808472+00:00',
-            '2022-11-22 08:35:24.056808472+00:00',
-        ],
-    ),
-))
-def test_get_ccd_records(rac_dir, min_time, inds):
-    out = get_ccd_records(rac_dir, min_time)
+        dtype='datetime64[ns, UTC]',
+        name='EXPDate',
+    )
+
     pd.testing.assert_index_equal(
         out.index,
-        pd.DatetimeIndex(inds, dtype='datetime64[ns, UTC]', name='EXPDate')
+        expect_inds,
     )
 
 
 @pytest.mark.parametrize("min_time,max_time,rows", (
     (
-        np.datetime64("2022-11-01T00:00:00"),
-        np.datetime64("2022-12-01T00:00:00"),
+        pd.Timestamp(2022, 11, 1),
+        pd.Timestamp(2022, 12, 1),
         57230
     ),
     (
-        np.datetime64("2022-11-22T12:00:00"),
-        np.datetime64("2022-12-01T00:00:00"),
+        pd.Timestamp(2022, 11, 22, 12),
+        pd.Timestamp(2022, 12, 1),
         14105
     ),
     (
-        np.datetime64("2022-11-22T12:00:00"),
-        np.datetime64("2022-11-22T13:00:00"),
+        pd.Timestamp(2022, 11, 22, 12),
+        pd.Timestamp(2022, 11, 22, 13),
         3598
     ),
 ))
@@ -105,18 +136,18 @@ def test_get_orbit_records(platform_dir, min_time, max_time, rows):
 
 @pytest.mark.parametrize("min_time,max_time,rows", (
     (
-        np.datetime64("2022-11-01T00:00:00"),
-        np.datetime64("2022-12-01T00:00:00"),
+        pd.Timestamp(2022, 11, 1),
+        pd.Timestamp(2022, 12, 1),
         57362
     ),
     (
-        np.datetime64("2022-11-22T12:00:00"),
-        np.datetime64("2022-12-01T00:00:00"),
+        pd.Timestamp(2022, 11, 22, 12),
+        pd.Timestamp(2022, 12, 1),
         14149
     ),
     (
-        np.datetime64("2022-11-22T12:00:00"),
-        np.datetime64("2022-11-22T13:00:00"),
+        pd.Timestamp(2022, 11, 22, 12),
+        pd.Timestamp(2022, 11, 22, 13),
         3603
     ),
 ))
@@ -135,8 +166,8 @@ def test_get_search_bounds():
         '2022-11-22 08:33:38.175216675+00:00',
     ])
     assert get_search_bounds(timeinds) == (
-        np.datetime64('2022-11-22 08:32:24.521820068+00:00'),
-        np.datetime64('2022-11-22 08:35:54.056808472+00:00'),
+        pd.Timestamp('2022-11-22 08:32:54.521820068+00:00'),
+        pd.Timestamp('2022-11-22 08:35:24.056808472+00:00'),
     )
 
 
@@ -189,27 +220,3 @@ def test_interpolate():
             index=datetimes,
         )
     )
-
-
-def test_get_partitioned_dates():
-    datetimes = pd.DatetimeIndex([
-        '2022-11-01',
-        '2022-11-02',
-        '2022-11-03',
-    ])
-    pd.testing.assert_frame_equal(
-        get_partitioned_dates(datetimes),
-        pd.DataFrame({
-            'year': [2022, 2022, 2022],
-            'month': [11, 11, 11],
-            'day': [1, 2, 3],
-        }, index=datetimes)
-    )
-
-
-def test_get_filename():
-    assert get_filename(pd.DatetimeIndex([
-        '2022-11-01',
-        '2022-11-02',
-        '2022-11-03',
-    ])) == "payload-level1a_20221101-000000_20221103-000000_{i}.parquet"

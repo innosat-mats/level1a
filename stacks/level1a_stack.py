@@ -1,10 +1,11 @@
 
-from aws_cdk import Duration, Size, Stack
-from aws_cdk.aws_events import Rule, Schedule
-from aws_cdk.aws_events_targets import LambdaFunction
+from aws_cdk import Duration, Size, Stack, RemovalPolicy
 from aws_cdk.aws_lambda import Architecture, Runtime
 from aws_cdk.aws_lambda_python_alpha import PythonFunction  # type: ignore
-from aws_cdk.aws_s3 import Bucket
+from aws_cdk.aws_s3 import Bucket, NotificationKeyFilter
+from aws_cdk.aws_s3_notifications import SqsDestination
+from aws_cdk.aws_sqs import Queue
+from aws_cdk.aws_lambda_event_sources import SqsEventSource
 from constructs import Construct
 
 
@@ -16,8 +17,9 @@ class Level1AStack(Stack):
         rac_bucket_name: str,
         platform_bucket_name: str,
         output_bucket_name: str,
-        lambda_schedule: Schedule = Schedule.rate(Duration.hours(12)),
         lambda_timeout: Duration = Duration.seconds(300),
+        queue_retention_period: Duration = Duration.days(14),
+        queue_visibility_timeout: Duration = Duration.hours(12),
         **kwargs
     ) -> None:
         super().__init__(scope, id, **kwargs)
@@ -52,18 +54,28 @@ class Level1AStack(Stack):
             memory_size=512,
             ephemeral_storage_size=Size.mebibytes(512),
             environment={
-                "RAC_BUCKET": rac_bucket_name,
                 "PLATFORM_BUCKET": platform_bucket_name,
                 "OUTPUT_BUCKET": output_bucket_name,
             },
         )
 
-        rule = Rule(
+        event_queue = Queue(
             self,
-            "Level1ALambdaSchedule",
-            schedule=lambda_schedule,
+            "ProcessCCDQueue",
+            retention_period=queue_retention_period,
+            visibility_timeout=queue_visibility_timeout,
+            removal_policy=RemovalPolicy.RETAIN,
         )
-        rule.add_target(LambdaFunction(level1a_lambda))
+
+        rac_bucket.add_object_created_notification(
+            SqsDestination(event_queue),
+            NotificationKeyFilter(prefix="CCD"),
+        )
+
+        level1a_lambda.add_event_source(SqsEventSource(
+            event_queue,
+            batch_size=1,
+        ))
 
         output_bucket.grant_read_write(level1a_lambda)
         rac_bucket.grant_read(level1a_lambda)
