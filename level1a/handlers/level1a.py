@@ -97,7 +97,9 @@ def get_htr_records(
             & (ds.field('TMHeaderTime') <= max_time)
         ),
         columns=HTR_COLUMNS,
-    ).to_pandas().set_index("TMHeaderTime").sort_index()
+    ).to_pandas().drop_duplicates("TMHeaderTime").set_index(
+        "TMHeaderTime"
+    ).sort_index()
     return dataset
 
 
