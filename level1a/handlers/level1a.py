@@ -20,9 +20,9 @@ Event = Dict[str, Any]
 Context = Any
 
 OFFSET_FACTOR = 2
-ORBIT_FREQUENCY = 0.1
-ATTITUDE_FREQUENCY = 1.
-HTR_FREQUENCY = 0.1
+ORBIT_FREQUENCY = 0.1  # Hz
+ATTITUDE_FREQUENCY = 1.  # Hz
+HTR_FREQUENCY = 0.1  # Hz
 
 PLATFORM_PREFIXES = {
     "HK_ecPowOps_1", "PreciseAttitudeEstimation", "PreciseOrbitEstimation",
