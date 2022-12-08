@@ -1,9 +1,12 @@
 import json
 import os
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import numpy as np
 import pandas as pd  # type: ignore
+import pyarrow.parquet as pq  # type: ignore
 import pytest  # type: ignore
 from level1a.handlers.level1a import (
     HTR_COLUMNS,
@@ -16,6 +19,7 @@ from level1a.handlers.level1a import (
     get_search_bounds,
     interp_array,
     interpolate,
+    lambda_handler,
     parse_event_message,
 )
 
@@ -245,3 +249,51 @@ def test_interpolate():
             index=datetimes,
         )
     )
+
+
+@patch("level1a.handlers.level1a.pa.fs.S3FileSystem", return_value=None)
+@patch.dict(os.environ, {
+    "OUTPUT_BUCKET": TemporaryDirectory().name,
+    "PLATFORM_BUCKET": str(Path(__file__).parent / "files" / "platform"),
+    "HTR_BUCKET": str(Path(__file__).parent / "files" / "rac"),
+})
+def test_lambda_handler(patched_s3):
+    out_dir = os.environ["OUTPUT_BUCKET"]
+    (Path(out_dir) / "2022" / "11" / "22").mkdir(parents=True)
+
+    out_file = "2022/11/22/MATS_OPS_Level0_VC1_APID100_20221122-080636_20221122-094142.parquet"  # noqa: E501
+
+    event = {
+        "Records": [{
+            "body": json.dumps({
+                "Records": [{
+                    "s3": {
+                        "bucket": {
+                            "name": str(Path(__file__).parent / "files" / "rac")
+                        },
+                        "object": {"key": f"CCD/{out_file}"}
+                    }
+                }]
+            }),
+        }],
+    }
+
+    lambda_handler(event, "")
+
+    df = pq.read_table(f"{out_dir}/{out_file}").to_pandas()
+    assert df.index.name == "EXPDate"
+    assert set(df.columns) == {
+        "OriginFile", "ProcessingTime", "RamsesTime", "QualityIndicator",
+        "LossFlag", "VCFrameCounter", "SPSequenceCount", "TMHeaderTime",
+        "TMHeaderNanoseconds", "SID", "RID", "CCDSEL", "EXPNanoseconds",
+        "WDWMode", "WDWInputDataWindow", "WDWOV", "JPEGQ", "FRAME", "NROW",
+        "NRBIN", "NRSKIP", "NCOL", "NCBINFPGAColumns", "NCBINCCDColumns",
+        "NCSKIP", "NFLUSH", "TEXPMS", "GAINMode", "GAINTiming",
+        "GAINTruncation", "TEMP", "FBINOV", "LBLNK", "TBLNK", "ZERO", "TIMING1",
+        "TIMING2", "VERSION", "TIMING3", "NBC", "BadColumns", "ImageName",
+        "ImageData", "Warnings", "Errors", "afsAttitudeState",
+        "afsTangentPoint", "acsGnssStateJ2000", "HTR1A", "HTR1B", "HTR1OD",
+        "HTR2A", "HTR2B", "HTR2OD", "HTR7A", "HTR7B", "HTR7OD", "HTR8A",
+        "HTR8B", "HTR8OD",
+    }
+    assert len(df) == 5
