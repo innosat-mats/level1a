@@ -6,9 +6,11 @@ import numpy as np
 import pandas as pd  # type: ignore
 import pytest  # type: ignore
 from level1a.handlers.level1a import (
+    HTR_COLUMNS,
     covers,
     get_attitude_records,
     get_ccd_records,
+    get_htr_records,
     get_or_raise,
     get_orbit_records,
     get_search_bounds,
@@ -109,6 +111,29 @@ def test_get_ccd_records(ccd_path):
         out.index,
         expect_inds,
     )
+
+
+@pytest.mark.parametrize("min_time,max_time,rows", (
+    (
+        pd.Timestamp("2022-11-22T08:00:00+00:00"),
+        pd.Timestamp("2022-11-22T10:00:00+00:00"),
+        582
+    ),
+    (
+        pd.Timestamp("2022-11-22T08:00:00+00:00"),
+        pd.Timestamp("2022-11-22T09:00:00+00:00"),
+        338
+    ),
+    (
+        pd.Timestamp("2022-11-22T09:00:00+00:00"),
+        pd.Timestamp("2022-11-22T10:00:00+00:00"),
+        244
+    ),
+))
+def test_get_htr_records(htr_path, min_time, max_time, rows):
+    out = get_htr_records(htr_path, min_time, max_time)
+    assert set([*out.columns, out.index.name]) == set(HTR_COLUMNS)
+    assert len(out) == rows
 
 
 @pytest.mark.parametrize("min_time,max_time,rows", (
