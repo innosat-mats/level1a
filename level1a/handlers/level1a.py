@@ -20,13 +20,18 @@ Event = Dict[str, Any]
 Context = Any
 
 OFFSET_FACTOR = 2
-ORBIT_FREQUENCY = 0.1
-ATTITUDE_FREQUENCY = 1.
+ORBIT_FREQUENCY = 0.1  # Hz
+ATTITUDE_FREQUENCY = 1.  # Hz
+HTR_FREQUENCY = 0.1  # Hz
 
 PLATFORM_PREFIXES = {
     "HK_ecPowOps_1", "PreciseAttitudeEstimation", "PreciseOrbitEstimation",
     "scoCurrentScMode", "TM_acGnssOps", "TM_afAcsHiRateAttitudeData",
 }
+HTR_COLUMNS = [
+    "TMHeaderTime", "HTR1A", "HTR1B", "HTR1OD", "HTR2A", "HTR2B", "HTR2OD",
+    "HTR7A", "HTR7B", "HTR7OD", "HTR8A", "HTR8B", "HTR8OD",
+]
 
 
 class DoesNotCover(Exception):
@@ -75,6 +80,25 @@ def get_ccd_records(
         path_or_bucket,
         filesystem=filesystem,
     ).to_pandas().set_index("EXPDate").sort_index()
+
+
+def get_htr_records(
+    path_or_bucket: str,
+    min_time: Timestamp,
+    max_time: Timestamp,
+    filesystem: pa.fs.FileSystem = None,
+) -> DataFrame:
+    dataset = ds.dataset(
+        path_or_bucket,
+        filesystem=filesystem,
+    ).to_table(
+        filter=(
+            (ds.field('TMHeaderTime') >= min_time)
+            & (ds.field('TMHeaderTime') <= max_time)
+        ),
+        columns=HTR_COLUMNS,
+    ).to_pandas().set_index("TMHeaderTime").sort_index()
+    return dataset
 
 
 def get_orbit_records(
@@ -170,6 +194,7 @@ def interpolate(dataframe: DataFrame, target: DatetimeIndex) -> DataFrame:
 def lambda_handler(event: Event, context: Context):
     output_bucket = get_or_raise("OUTPUT_BUCKET")
     platform_bucket = get_or_raise("PLATFORM_BUCKET")
+    htr_bucket = get_or_raise("HTR_BUCKET")
     region = os.environ.get('AWS_REGION', "eu-north-1")
     s3 = pa.fs.S3FileSystem(region=region)
 
@@ -212,19 +237,27 @@ def lambda_handler(event: Event, context: Context):
         max_time + get_offset(ORBIT_FREQUENCY),
         filesystem=s3,
     )
+    htr_df = get_htr_records(
+        f"{htr_bucket}/HTR",
+        min_time - get_offset(HTR_FREQUENCY),
+        max_time + get_offset(HTR_FREQUENCY),
+        filesystem=s3,
+    )
 
     if not covers(attitude_df.index, min_time, max_time):
         raise DoesNotCover("Attitude data is missing timestamps")
     if not covers(orbit_df.index, min_time, max_time):
         raise DoesNotCover("Orbit data is missing timestamps")
+    if not covers(htr_df.index, min_time, max_time):
+        raise DoesNotCover("HTR data is missing timestamps")
 
     attitude_subset = interpolate(attitude_df, rac_df.index)
     orbit_subset = interpolate(orbit_df, rac_df.index)
+    htr_subset = interpolate(htr_df, rac_df.index)
     out_table = pa.Table.from_pandas(concat(
-        [rac_df, attitude_subset, orbit_subset],
+        [rac_df, attitude_subset, orbit_subset, htr_subset],
         axis=1,
     ))
-
     pq.write_table(
         out_table,
         f"{output_bucket}/{object.strip('/CCD')}",
