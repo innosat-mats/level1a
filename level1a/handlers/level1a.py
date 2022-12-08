@@ -29,9 +29,8 @@ PLATFORM_PREFIXES = {
     "scoCurrentScMode", "TM_acGnssOps", "TM_afAcsHiRateAttitudeData",
 }
 HTR_COLUMNS = [
-    "TMHeaderTime", "HTR1A", "HTR1B", "HTR1OD",
-    "HTR2A", "HTR2B", "HTR2OD", "HTR7A", "HTR7B", "HTR7OD", "HTR8A",
-    "HTR8B", "HTR8OD",
+    "TMHeaderTime", "HTR1A", "HTR1B", "HTR1OD", "HTR2A", "HTR2B", "HTR2OD",
+    "HTR7A", "HTR7B", "HTR7OD", "HTR8A", "HTR8B", "HTR8OD",
 ]
 
 
