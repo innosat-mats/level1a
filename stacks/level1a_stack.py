@@ -1,11 +1,11 @@
 
-from aws_cdk import Duration, Size, Stack, RemovalPolicy
+from aws_cdk import Duration, RemovalPolicy, Size, Stack
 from aws_cdk.aws_lambda import Architecture, Runtime
+from aws_cdk.aws_lambda_event_sources import SqsEventSource
 from aws_cdk.aws_lambda_python_alpha import PythonFunction  # type: ignore
 from aws_cdk.aws_s3 import Bucket, NotificationKeyFilter
 from aws_cdk.aws_s3_notifications import SqsDestination
-from aws_cdk.aws_sqs import Queue
-from aws_cdk.aws_lambda_event_sources import SqsEventSource
+from aws_cdk.aws_sqs import DeadLetterQueue, Queue
 from constructs import Construct
 
 
@@ -17,9 +17,8 @@ class Level1AStack(Stack):
         rac_bucket_name: str,
         platform_bucket_name: str,
         output_bucket_name: str,
-        lambda_timeout: Duration = Duration.seconds(300),
+        lambda_timeout: Duration = Duration.seconds(900),
         queue_retention_period: Duration = Duration.days(14),
-        queue_visibility_timeout: Duration = Duration.hours(12),
         **kwargs
     ) -> None:
         super().__init__(scope, id, **kwargs)
@@ -63,9 +62,16 @@ class Level1AStack(Stack):
         event_queue = Queue(
             self,
             "ProcessCCDQueue",
-            retention_period=queue_retention_period,
-            visibility_timeout=queue_visibility_timeout,
+            visibility_timeout=lambda_timeout,
             removal_policy=RemovalPolicy.RETAIN,
+            dead_letter_queue=DeadLetterQueue(
+                max_receive_count=1,
+                queue=Queue(
+                    self,
+                    "FailedCCDProcessQueue",
+                    retention_period=queue_retention_period,
+                )
+            )
         )
 
         rac_bucket.add_object_created_notification(
