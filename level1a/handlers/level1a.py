@@ -42,6 +42,10 @@ class InvalidMessage(Exception):
     pass
 
 
+class Level1AException(Exception):
+    pass
+
+
 def get_or_raise(variable_name: str) -> str:
     if (var := os.environ.get(variable_name)) is None:
         raise EnvironmentError(
@@ -194,75 +198,82 @@ def interpolate(dataframe: DataFrame, target: DatetimeIndex) -> DataFrame:
 
 
 def lambda_handler(event: Event, context: Context):
-    output_bucket = get_or_raise("OUTPUT_BUCKET")
-    platform_bucket = get_or_raise("PLATFORM_BUCKET")
-    htr_bucket = get_or_raise("HTR_BUCKET")
-    region = os.environ.get('AWS_REGION', "eu-north-1")
-    s3 = pa.fs.S3FileSystem(region=region)
+    try:
+        output_bucket = get_or_raise("OUTPUT_BUCKET")
+        platform_bucket = get_or_raise("PLATFORM_BUCKET")
+        htr_bucket = get_or_raise("HTR_BUCKET")
+        region = os.environ.get('AWS_REGION', "eu-north-1")
+        s3 = pa.fs.S3FileSystem(region=region)
+
+        try:
+            bucket, object = parse_event_message(event)
+        except InvalidMessage:
+            return {
+                'statusCode': HTTPStatus.NO_CONTENT,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({
+                    'message': 'Failed to parse event, nothing to do.'
+                })
+            }
+
+        if not object.endswith(".parquet"):
+            return {
+                'statusCode': HTTPStatus.NO_CONTENT,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({
+                    'message': f'{object} is not a parquet file, nothing to do.'
+                })
+            }
+
+        rac_df = get_ccd_records(
+            f"{bucket}/{object}",
+            filesystem=s3,
+        )
+
+        min_time, max_time = get_search_bounds(rac_df.index)
+    except Exception as err:
+        raise Level1AException("Failed to initialize handler") from err
 
     try:
-        bucket, object = parse_event_message(event)
-    except InvalidMessage:
-        return {
-            'statusCode': HTTPStatus.NO_CONTENT,
-            'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({
-                'message': 'Failed to parse event, nothing to do.'
-            })
-        }
+        attitude_df = get_attitude_records(
+            platform_bucket,
+            min_time - get_offset(ATTITUDE_FREQUENCY),
+            max_time + get_offset(ATTITUDE_FREQUENCY),
+            filesystem=s3,
+        )
+        orbit_df = get_orbit_records(
+            platform_bucket,
+            min_time - get_offset(ORBIT_FREQUENCY),
+            max_time + get_offset(ORBIT_FREQUENCY),
+            filesystem=s3,
+        )
+        htr_df = get_htr_records(
+            f"{htr_bucket}/HTR",
+            min_time - get_offset(HTR_FREQUENCY),
+            max_time + get_offset(HTR_FREQUENCY),
+            filesystem=s3,
+        )
 
-    if not object.endswith(".parquet"):
-        return {
-            'statusCode': HTTPStatus.NO_CONTENT,
-            'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({
-                'message': f'{object} is not a parquet file, nothing to do.'
-            })
-        }
+        if not covers(attitude_df.index, min_time, max_time):
+            raise DoesNotCover("Attitude data is missing timestamps")
+        if not covers(orbit_df.index, min_time, max_time):
+            raise DoesNotCover("Orbit data is missing timestamps")
+        if not covers(htr_df.index, min_time, max_time):
+            raise DoesNotCover("HTR data is missing timestamps")
 
-    rac_df = get_ccd_records(
-        f"{bucket}/{object}",
-        filesystem=s3,
-    )
-
-    min_time, max_time = get_search_bounds(rac_df.index)
-
-    attitude_df = get_attitude_records(
-        platform_bucket,
-        min_time - get_offset(ATTITUDE_FREQUENCY),
-        max_time + get_offset(ATTITUDE_FREQUENCY),
-        filesystem=s3,
-    )
-    orbit_df = get_orbit_records(
-        platform_bucket,
-        min_time - get_offset(ORBIT_FREQUENCY),
-        max_time + get_offset(ORBIT_FREQUENCY),
-        filesystem=s3,
-    )
-    htr_df = get_htr_records(
-        f"{htr_bucket}/HTR",
-        min_time - get_offset(HTR_FREQUENCY),
-        max_time + get_offset(HTR_FREQUENCY),
-        filesystem=s3,
-    )
-
-    if not covers(attitude_df.index, min_time, max_time):
-        raise DoesNotCover("Attitude data is missing timestamps")
-    if not covers(orbit_df.index, min_time, max_time):
-        raise DoesNotCover("Orbit data is missing timestamps")
-    if not covers(htr_df.index, min_time, max_time):
-        raise DoesNotCover("HTR data is missing timestamps")
-
-    attitude_subset = interpolate(attitude_df, rac_df.index)
-    orbit_subset = interpolate(orbit_df, rac_df.index)
-    htr_subset = interpolate(htr_df, rac_df.index)
-    out_table = pa.Table.from_pandas(concat(
-        [rac_df, attitude_subset, orbit_subset, htr_subset],
-        axis=1,
-    ))
-    pq.write_table(
-        out_table,
-        f"{output_bucket}/{object.strip('/CCD')}",
-        filesystem=s3,
-        version='2.6',
-    )
+        attitude_subset = interpolate(attitude_df, rac_df.index)
+        orbit_subset = interpolate(orbit_df, rac_df.index)
+        htr_subset = interpolate(htr_df, rac_df.index)
+        out_table = pa.Table.from_pandas(concat(
+            [rac_df, attitude_subset, orbit_subset, htr_subset],
+            axis=1,
+        ))
+        pq.write_table(
+            out_table,
+            f"{output_bucket}/{object.strip('/CCD')}",
+            filesystem=s3,
+            version='2.6',
+        )
+    except Exception as err:
+        msg = f"Failed to process {object} with start time {min_time} and end time {max_time}"  # noqa: E501
+        raise Level1AException(msg) from err
