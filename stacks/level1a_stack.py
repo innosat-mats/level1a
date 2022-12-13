@@ -50,7 +50,7 @@ class Level1AStack(Stack):
             timeout=lambda_timeout,
             architecture=Architecture.X86_64,
             runtime=Runtime.PYTHON_3_9,
-            memory_size=1024,
+            memory_size=4096,
             ephemeral_storage_size=Size.mebibytes(512),
             environment={
                 "PLATFORM_BUCKET": platform_bucket_name,
