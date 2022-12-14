@@ -26,3 +26,13 @@ def ccd_path(rac_dir):
 @pytest.fixture
 def htr_path(rac_dir):
     return rac_dir / "HTR"
+
+
+@pytest.fixture
+def orbit_path(platform_dir):
+    return platform_dir / "PreciseOrbitEstimation"
+
+
+@pytest.fixture
+def attitude_path(platform_dir):
+    return platform_dir / "PreciseAttitudeEstimation"

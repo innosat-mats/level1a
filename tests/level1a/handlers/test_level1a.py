@@ -157,8 +157,8 @@ def test_get_htr_records(htr_path, min_time, max_time, rows):
         3598
     ),
 ))
-def test_get_orbit_records(platform_dir, min_time, max_time, rows):
-    out = get_orbit_records(platform_dir, min_time, max_time)
+def test_get_orbit_records(orbit_path, min_time, max_time, rows):
+    out = get_orbit_records(orbit_path, min_time, max_time)
     assert list(out.columns) == ["afsTangentPoint", "acsGnssStateJ2000"]
     assert len(out) == rows
 
@@ -180,8 +180,8 @@ def test_get_orbit_records(platform_dir, min_time, max_time, rows):
         3603
     ),
 ))
-def test_get_attitude_records(platform_dir, min_time, max_time, rows):
-    out = get_attitude_records(platform_dir, min_time, max_time)
+def test_get_attitude_records(attitude_path, min_time, max_time, rows):
+    out = get_attitude_records(attitude_path, min_time, max_time)
     assert list(out.columns) == ["afsAttitudeState"]
     assert len(out) == rows
 

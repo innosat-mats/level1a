@@ -24,10 +24,6 @@ ORBIT_FREQUENCY = 0.1  # Hz
 ATTITUDE_FREQUENCY = 1.  # Hz
 HTR_FREQUENCY = 0.1  # Hz
 
-PLATFORM_PREFIXES = {
-    "HK_ecPowOps_1", "PreciseAttitudeEstimation", "PreciseOrbitEstimation",
-    "scoCurrentScMode", "TM_acGnssOps", "TM_afAcsHiRateAttitudeData",
-}
 HTR_COLUMNS = [
     "TMHeaderTime", "HTR1A", "HTR1B", "HTR1OD", "HTR2A", "HTR2B", "HTR2OD",
     "HTR7A", "HTR7B", "HTR7OD", "HTR8A", "HTR8B", "HTR8OD",
@@ -116,7 +112,6 @@ def get_orbit_records(
     dataset = ds.dataset(
         path_or_bucket,
         filesystem=filesystem,
-        ignore_prefixes=list(PLATFORM_PREFIXES - {"PreciseOrbitEstimation"}),
         schema=pa.schema([
             ("time", pa.timestamp('ns')),
             ("afsTangentPoint", pa.list_(pa.float64())),
@@ -139,7 +134,6 @@ def get_attitude_records(
     dataset = ds.dataset(
         path_or_bucket,
         filesystem=filesystem,
-        ignore_prefixes=list(PLATFORM_PREFIXES - {"PreciseAttitudeEstimation"}),
         schema=pa.schema([
             ("time", pa.timestamp('ns')),
             ("afsAttitudeState", pa.list_(pa.float64())),
@@ -236,13 +230,13 @@ def lambda_handler(event: Event, context: Context):
 
     try:
         attitude_df = get_attitude_records(
-            platform_bucket,
+            f"{platform_bucket}/PreciseAttitudeEstimation",
             min_time - get_offset(ATTITUDE_FREQUENCY),
             max_time + get_offset(ATTITUDE_FREQUENCY),
             filesystem=s3,
         )
         orbit_df = get_orbit_records(
-            platform_bucket,
+            f"{platform_bucket}/PreciseOrbitEstimation",
             min_time - get_offset(ORBIT_FREQUENCY),
             max_time + get_offset(ORBIT_FREQUENCY),
             filesystem=s3,
