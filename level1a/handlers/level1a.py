@@ -180,20 +180,17 @@ def interp_to(
     if (before < 0 or after < 0) or (before > after):
         return column.iloc[0] * np.nan
 
-    timestamps = column.index[[before, after]].astype(int).values
+    timestamps = column.index[[before, after]]
 
     if (
         max_diff is not None
-        and (
-            Timedelta(seconds=np.abs(timestamps[1] - timestamps[0]) * 1e-9)
-            > max_diff
-        )
+        and np.diff(timestamps)[0] > max_diff
     ):
         return column.iloc[0] * np.nan
 
     return interp_array(
         target_date.value,
-        timestamps,
+        timestamps.astype(int).values,
         column.iloc[[before, after]].values,
     )
 
