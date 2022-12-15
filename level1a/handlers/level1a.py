@@ -1,7 +1,7 @@
 import json
 import os
 from http import HTTPStatus
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import pyarrow as pa  # type: ignore
@@ -165,18 +165,32 @@ def interp_array(
     if np.min(diffs) == 0:
         return values[np.argmin(diffs)]
     dt = np.diff(indices)
-    weights = diffs[::-1]/dt
+    weights = diffs[::-1] / dt
     return np.average(values, weights=weights, axis=0)
 
 
 def interp_to(
     target_date: Timestamp,
     column: Series,
+    max_diff: Optional[Timedelta] = None,
 ) -> np.ndarray:
     before = column.index.get_indexer([target_date], method='ffill')[0]
     after = column.index.get_indexer([target_date], method='bfill')[0]
 
+    if (before < 0 or after < 0) or (before > after):
+        return column.iloc[0] * np.nan
+
     timestamps = column.index[[before, after]].astype(int).values
+
+    if (
+        max_diff is not None
+        and (
+            Timedelta(seconds=np.abs(timestamps[1] - timestamps[0]) * 1e-9)
+            > max_diff
+        )
+    ):
+        return column.iloc[0] * np.nan
+
     return interp_array(
         target_date.value,
         timestamps,
@@ -184,9 +198,13 @@ def interp_to(
     )
 
 
-def interpolate(dataframe: DataFrame, target: DatetimeIndex) -> DataFrame:
+def interpolate(
+    dataframe: DataFrame,
+    target: DatetimeIndex,
+    max_diff: Optional[Timedelta] = None,
+) -> DataFrame:
     return DataFrame({
-        column: [interp_to(ind, dataframe[column]) for ind in target]
+        column: [interp_to(ind, dataframe[column], max_diff) for ind in target]
         for column in dataframe
     }, index=target)
 
@@ -252,12 +270,22 @@ def lambda_handler(event: Event, context: Context):
             raise DoesNotCover("Attitude data is missing timestamps")
         if not covers(orbit_df.index, min_time, max_time):
             raise DoesNotCover("Orbit data is missing timestamps")
-        if not covers(htr_df.index, min_time, max_time):
-            raise DoesNotCover("HTR data is missing timestamps")
 
-        attitude_subset = interpolate(attitude_df, rac_df.index)
-        orbit_subset = interpolate(orbit_df, rac_df.index)
-        htr_subset = interpolate(htr_df, rac_df.index)
+        attitude_subset = interpolate(
+            attitude_df,
+            rac_df.index,
+            max_diff=get_offset(ATTITUDE_FREQUENCY),
+        )
+        orbit_subset = interpolate(
+            orbit_df,
+            rac_df.index,
+            max_diff=get_offset(ORBIT_FREQUENCY),
+        )
+        htr_subset = interpolate(
+            htr_df,
+            rac_df.index,
+            max_diff=get_offset(HTR_FREQUENCY),
+        )
         out_table = pa.Table.from_pandas(concat(
             [rac_df, attitude_subset, orbit_subset, htr_subset],
             axis=1,

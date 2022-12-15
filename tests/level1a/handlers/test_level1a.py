@@ -229,6 +229,32 @@ def test_interp_array(eval_point, indices, values, expect):
 
 def test_interpolate():
     datetimes = pd.DatetimeIndex([
+        '2022-10-01T06:00:00',
+        '2022-11-01T06:00:00',
+        '2022-11-02T00:00:00',
+        '2022-11-02T18:00:00',
+        '2022-12-02T18:00:00',
+    ])
+    dataframe = pd.DataFrame(
+        [1., 2., 3., 4.],
+        index=pd.DatetimeIndex([
+            '2022-11-01T00:00:00',
+            '2022-11-01T12:00:00',
+            '2022-11-02T00:00:00',
+            '2022-11-03T00:00:00',
+        ])
+    )
+    pd.testing.assert_frame_equal(
+        interpolate(dataframe, datetimes),
+        pd.DataFrame(
+            [np.nan, 1.5, 3., 3.75, np.nan],
+            index=datetimes,
+        ),
+    )
+
+
+def test_interpolate_with_max_diff_returns_nan():
+    datetimes = pd.DatetimeIndex([
         '2022-11-01T06:00:00',
         '2022-11-02T00:00:00',
         '2022-11-02T18:00:00',
@@ -243,11 +269,11 @@ def test_interpolate():
         ])
     )
     pd.testing.assert_frame_equal(
-        interpolate(dataframe, datetimes),
+        interpolate(dataframe, datetimes, pd.Timedelta(hours=12)),
         pd.DataFrame(
-            [1.5, 3., 3.75],
+            [1.5, 3., np.nan],
             index=datetimes,
-        )
+        ),
     )
 
 
