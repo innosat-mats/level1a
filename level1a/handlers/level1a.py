@@ -241,7 +241,7 @@ def lambda_handler(event: Event, context: Context):
 
         min_time, max_time = get_search_bounds(rac_df.index)
     except Exception as err:
-        raise Level1AException("Failed to initialize handler") from err
+        raise Level1AException(f"Failed to initialize handler: {err}") from err
 
     try:
         attitude_df = get_attitude_records(
@@ -294,5 +294,5 @@ def lambda_handler(event: Event, context: Context):
             version='2.6',
         )
     except Exception as err:
-        msg = f"Failed to process {object} with start time {min_time} and end time {max_time}"  # noqa: E501
+        msg = f"Failed to process {object} with start time {min_time} and end time {max_time}: {err}"  # noqa: E501
         raise Level1AException(msg) from err
