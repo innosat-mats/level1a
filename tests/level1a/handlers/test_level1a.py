@@ -98,7 +98,7 @@ def test_covers(indices, first, last, expect):
 
 
 def test_get_ccd_records(ccd_path):
-    out = get_ccd_records(ccd_path)
+    out, meta = get_ccd_records(ccd_path)
     expect_inds = pd.DatetimeIndex(
         [
             '2022-11-22 08:32:54.521820068+00:00',
@@ -115,6 +115,12 @@ def test_get_ccd_records(ccd_path):
         out.index,
         expect_inds,
     )
+    assert meta == {
+        b'CODE': b'v1.1.0 (8e05798) @ 2022-11-25T12:48:39Z',
+        b'RAMSES': b'SPU045-S2:6F',
+        b'INNOSAT': b'IS-OSE-ICD-0005:1',
+        b'AEZ': b'AEZICD002:I',
+    }
 
 
 @pytest.mark.parametrize("min_time,max_time,rows", (
@@ -282,6 +288,7 @@ def test_interpolate_with_max_diff_returns_nan():
     "OUTPUT_BUCKET": TemporaryDirectory().name,
     "PLATFORM_BUCKET": str(Path(__file__).parent / "files" / "platform"),
     "HTR_BUCKET": str(Path(__file__).parent / "files" / "rac"),
+    "L1A_VERSION": "latest.and.greatest",
 })
 def test_lambda_handler(patched_s3):
     out_dir = os.environ["OUTPUT_BUCKET"]
