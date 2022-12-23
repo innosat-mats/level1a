@@ -1,4 +1,3 @@
-
 from aws_cdk import Duration, RemovalPolicy, Size, Stack
 from aws_cdk.aws_lambda import Architecture, Runtime
 from aws_cdk.aws_lambda_event_sources import SqsEventSource
@@ -19,6 +18,7 @@ class Level1AStack(Stack):
         output_bucket_name: str,
         lambda_timeout: Duration = Duration.seconds(900),
         queue_retention_period: Duration = Duration.days(14),
+        code_version: str = "",
         **kwargs
     ) -> None:
         super().__init__(scope, id, **kwargs)
@@ -56,6 +56,7 @@ class Level1AStack(Stack):
                 "PLATFORM_BUCKET": platform_bucket_name,
                 "OUTPUT_BUCKET": output_bucket_name,
                 "HTR_BUCKET": rac_bucket_name,
+                "L1A_VERSION": code_version,
             },
         )
 

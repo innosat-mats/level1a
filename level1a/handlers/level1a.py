@@ -75,11 +75,15 @@ def covers(
 def get_ccd_records(
     path_or_bucket: str,
     filesystem: pa.fs.FileSystem = None,
-) -> DataFrame:
-    return pq.read_table(
+) -> Tuple[DataFrame, pq.FileMetaData]:
+    table = pq.read_table(
         path_or_bucket,
         filesystem=filesystem,
-    ).to_pandas().set_index("EXPDate").sort_index()
+    )
+    return (
+        table.to_pandas().set_index("EXPDate").sort_index(),
+        table.schema.metadata,
+    )
 
 
 def get_htr_records(
@@ -211,6 +215,7 @@ def lambda_handler(event: Event, context: Context):
         output_bucket = get_or_raise("OUTPUT_BUCKET")
         platform_bucket = get_or_raise("PLATFORM_BUCKET")
         htr_bucket = get_or_raise("HTR_BUCKET")
+        version = get_or_raise("L1A_VERSION")
         region = os.environ.get('AWS_REGION', "eu-north-1")
         s3 = pa.fs.S3FileSystem(region=region)
 
@@ -234,10 +239,11 @@ def lambda_handler(event: Event, context: Context):
                 })
             }
 
-        rac_df = get_ccd_records(
+        rac_df, metadata = get_ccd_records(
             f"{bucket}/{object}",
             filesystem=s3,
         )
+        metadata.update({"L1ACode": version})
 
         min_time, max_time = get_search_bounds(rac_df.index)
     except Exception as err:
@@ -287,6 +293,10 @@ def lambda_handler(event: Event, context: Context):
             [rac_df, attitude_subset, orbit_subset, htr_subset],
             axis=1,
         ))
+        out_table.replace_schema_metadata({
+            **out_table.schema.metadata,
+            **metadata,
+        })
         pq.write_table(
             out_table,
             f"{output_bucket}/{object.strip('/CCD')}",
