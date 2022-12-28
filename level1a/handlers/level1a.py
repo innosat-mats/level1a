@@ -20,8 +20,7 @@ Event = Dict[str, Any]
 Context = Any
 
 OFFSET_FACTOR = 2
-ORBIT_FREQUENCY = 0.1  # Hz
-ATTITUDE_FREQUENCY = 1.  # Hz
+RECONSTRUCTED_FREQUENCY = 1.  # Hz
 HTR_FREQUENCY = 0.1  # Hz
 
 HTR_COLUMNS = [
@@ -107,29 +106,7 @@ def get_htr_records(
     return dataset
 
 
-def get_orbit_records(
-    path_or_bucket: str,
-    min_time: Timestamp,
-    max_time: Timestamp,
-    filesystem: pa.fs.FileSystem = None,
-) -> DataFrame:
-    dataset = ds.dataset(
-        path_or_bucket,
-        filesystem=filesystem,
-        schema=pa.schema([
-            ("time", pa.timestamp('ns')),
-            ("afsTangentPoint", pa.list_(pa.float64())),
-            ("acsGnssStateJ2000", pa.list_(pa.float64())),
-        ])
-    ).to_table(filter=(
-        (ds.field('time') >= min_time.asm8)
-        & (ds.field('time') <= max_time.asm8)
-    )).to_pandas().drop_duplicates("time").set_index("time").sort_index()
-    dataset.index = dataset.index.tz_localize('utc')
-    return dataset
-
-
-def get_attitude_records(
+def get_reconstructed_records(
     path_or_bucket: str,
     min_time: Timestamp,
     max_time: Timestamp,
@@ -141,6 +118,10 @@ def get_attitude_records(
         schema=pa.schema([
             ("time", pa.timestamp('ns')),
             ("afsAttitudeState", pa.list_(pa.float64())),
+            ("afsGnssStateJ2000", pa.list_(pa.float64())),
+            ("afsTPLongLatGeod", pa.list_(pa.float64())),
+            ("afsTangentH_wgs84", pa.list_(pa.float64())),
+            ("afsTangentPointECI", pa.list_(pa.float64())),
         ])
     ).to_table(filter=(
         (ds.field('time') >= min_time.asm8)
@@ -250,16 +231,10 @@ def lambda_handler(event: Event, context: Context):
         raise Level1AException(f"Failed to initialize handler: {err}") from err
 
     try:
-        attitude_df = get_attitude_records(
-            f"{platform_bucket}/PreciseAttitudeEstimation",
-            min_time - get_offset(ATTITUDE_FREQUENCY),
-            max_time + get_offset(ATTITUDE_FREQUENCY),
-            filesystem=s3,
-        )
-        orbit_df = get_orbit_records(
-            f"{platform_bucket}/PreciseOrbitEstimation",
-            min_time - get_offset(ORBIT_FREQUENCY),
-            max_time + get_offset(ORBIT_FREQUENCY),
+        reconstructed_df = get_reconstructed_records(
+            f"{platform_bucket}/ReconstructedData",
+            min_time - get_offset(RECONSTRUCTED_FREQUENCY),
+            max_time + get_offset(RECONSTRUCTED_FREQUENCY),
             filesystem=s3,
         )
         htr_df = get_htr_records(
@@ -269,20 +244,13 @@ def lambda_handler(event: Event, context: Context):
             filesystem=s3,
         )
 
-        if not covers(attitude_df.index, min_time, max_time):
-            raise DoesNotCover("Attitude data is missing timestamps")
-        if not covers(orbit_df.index, min_time, max_time):
-            raise DoesNotCover("Orbit data is missing timestamps")
+        if not covers(reconstructed_df.index, min_time, max_time):
+            raise DoesNotCover("Reconstructed data is missing timestamps")
 
-        attitude_subset = interpolate(
-            attitude_df,
+        reconstructed_df = interpolate(
+            reconstructed_df,
             rac_df.index,
-            max_diff=get_offset(ATTITUDE_FREQUENCY),
-        )
-        orbit_subset = interpolate(
-            orbit_df,
-            rac_df.index,
-            max_diff=get_offset(ORBIT_FREQUENCY),
+            max_diff=get_offset(RECONSTRUCTED_FREQUENCY),
         )
         htr_subset = interpolate(
             htr_df,
@@ -290,13 +258,17 @@ def lambda_handler(event: Event, context: Context):
             max_diff=get_offset(HTR_FREQUENCY),
         )
         out_table = pa.Table.from_pandas(concat(
-            [rac_df, attitude_subset, orbit_subset, htr_subset],
+            [rac_df, reconstructed_df, htr_subset],
             axis=1,
         ))
         out_table.replace_schema_metadata({
             **out_table.schema.metadata,
             **metadata,
         })
+        print(concat(
+            [rac_df, reconstructed_df, htr_subset],
+            axis=1,
+        ).columns)
         pq.write_table(
             out_table,
             f"{output_bucket}/{object.strip('/CCD')}",
