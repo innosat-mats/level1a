@@ -11,11 +11,10 @@ import pytest  # type: ignore
 from level1a.handlers.level1a import (
     HTR_COLUMNS,
     covers,
-    get_attitude_records,
     get_ccd_records,
     get_htr_records,
     get_or_raise,
-    get_orbit_records,
+    get_reconstructed_records,
     get_search_bounds,
     interp_array,
     interpolate,
@@ -101,11 +100,10 @@ def test_get_ccd_records(ccd_path):
     out, meta = get_ccd_records(ccd_path)
     expect_inds = pd.DatetimeIndex(
         [
-            '2022-11-22 08:32:54.521820068+00:00',
-            '2022-11-22 08:33:11.365371704+00:00',
-            '2022-11-22 08:33:38.175216675+00:00',
-            '2022-11-22 08:35:24.056808472+00:00',
-            '2022-11-22 08:35:24.056808472+00:00',
+            '2022-12-21 23:59:59.063491821+00:00',
+            '2022-12-21 23:59:59.063491821+00:00',
+            '2022-12-21 23:59:59.063491821+00:00',
+            '2022-12-21 23:59:59.370483398+00:00',
         ],
         dtype='datetime64[ns, UTC]',
         name='EXPDate',
@@ -116,7 +114,7 @@ def test_get_ccd_records(ccd_path):
         expect_inds,
     )
     assert meta == {
-        b'CODE': b'v1.1.0 (8e05798) @ 2022-11-25T12:48:39Z',
+        b'CODE': b'v1.2.0 (20b4dcc) @ 2022-12-07T09:53:06Z',
         b'RAMSES': b'SPU045-S2:6F',
         b'INNOSAT': b'IS-OSE-ICD-0005:1',
         b'AEZ': b'AEZICD002:I',
@@ -125,19 +123,19 @@ def test_get_ccd_records(ccd_path):
 
 @pytest.mark.parametrize("min_time,max_time,rows", (
     (
-        pd.Timestamp("2022-11-22T08:00:00+00:00"),
-        pd.Timestamp("2022-11-22T10:00:00+00:00"),
-        582
+        pd.Timestamp("2022-12-21T13:00:00+00:00"),
+        pd.Timestamp("2022-12-22T00:00:00+00:00"),
+        3797
     ),
     (
-        pd.Timestamp("2022-11-22T08:00:00+00:00"),
-        pd.Timestamp("2022-11-22T09:00:00+00:00"),
-        338
+        pd.Timestamp("2022-12-21T13:00:00+00:00"),
+        pd.Timestamp("2022-12-21T14:00:00+00:00"),
+        224
     ),
     (
-        pd.Timestamp("2022-11-22T09:00:00+00:00"),
-        pd.Timestamp("2022-11-22T10:00:00+00:00"),
-        244
+        pd.Timestamp("2022-12-21T23:00:00+00:00"),
+        pd.Timestamp("2022-12-22T00:00:00+00:00"),
+        360
     ),
 ))
 def test_get_htr_records(htr_path, min_time, max_time, rows):
@@ -148,47 +146,35 @@ def test_get_htr_records(htr_path, min_time, max_time, rows):
 
 @pytest.mark.parametrize("min_time,max_time,rows", (
     (
-        pd.Timestamp(2022, 11, 1),
-        pd.Timestamp(2022, 12, 1),
-        57230
+        pd.Timestamp("2022-12-21T00:00:00Z"),
+        pd.Timestamp("2022-12-22T00:00:00Z"),
+        11436
     ),
     (
-        pd.Timestamp(2022, 11, 22, 12),
-        pd.Timestamp(2022, 12, 1),
-        14105
+        pd.Timestamp("2022-12-21T20:00:00Z"),
+        pd.Timestamp("2022-12-21T21:00:00Z"),
+        639
     ),
     (
-        pd.Timestamp(2022, 11, 22, 12),
-        pd.Timestamp(2022, 11, 22, 13),
-        3598
+        pd.Timestamp("2022-12-21T23:00:00Z"),
+        pd.Timestamp("2022-12-22T00:00:00Z"),
+        3599
     ),
 ))
-def test_get_orbit_records(orbit_path, min_time, max_time, rows):
-    out = get_orbit_records(orbit_path, min_time, max_time)
-    assert list(out.columns) == ["afsTangentPoint", "acsGnssStateJ2000"]
-    assert len(out) == rows
-
-
-@pytest.mark.parametrize("min_time,max_time,rows", (
-    (
-        pd.Timestamp(2022, 11, 1),
-        pd.Timestamp(2022, 12, 1),
-        57362
-    ),
-    (
-        pd.Timestamp(2022, 11, 22, 12),
-        pd.Timestamp(2022, 12, 1),
-        14149
-    ),
-    (
-        pd.Timestamp(2022, 11, 22, 12),
-        pd.Timestamp(2022, 11, 22, 13),
-        3603
-    ),
-))
-def test_get_attitude_records(attitude_path, min_time, max_time, rows):
-    out = get_attitude_records(attitude_path, min_time, max_time)
-    assert list(out.columns) == ["afsAttitudeState"]
+def test_get_reconstructed_records(
+    reconstructed_path,
+    min_time,
+    max_time,
+    rows,
+):
+    out = get_reconstructed_records(reconstructed_path, min_time, max_time)
+    assert list(out.columns) == [
+        "afsAttitudeState",
+        "afsGnssStateJ2000",
+        "afsTPLongLatGeod",
+        "afsTangentH_wgs84",
+        "afsTangentPointECI",
+    ]
     assert len(out) == rows
 
 
@@ -292,9 +278,9 @@ def test_interpolate_with_max_diff_returns_nan():
 })
 def test_lambda_handler(patched_s3):
     out_dir = os.environ["OUTPUT_BUCKET"]
-    (Path(out_dir) / "2022" / "11" / "22").mkdir(parents=True)
+    (Path(out_dir) / "2022" / "12" / "21").mkdir(parents=True)
 
-    out_file = "2022/11/22/MATS_OPS_Level0_VC1_APID100_20221122-080636_20221122-094142.parquet"  # noqa: E501
+    out_file = "2022/12/21/MATS_OPS_Level0_VC1_APID100_20221221-132606_20221222-133247.parquet"  # noqa: E501
 
     event = {
         "Records": [{
@@ -325,8 +311,8 @@ def test_lambda_handler(patched_s3):
         "GAINTruncation", "TEMP", "FBINOV", "LBLNK", "TBLNK", "ZERO", "TIMING1",
         "TIMING2", "VERSION", "TIMING3", "NBC", "BadColumns", "ImageName",
         "ImageData", "Warnings", "Errors", "afsAttitudeState",
-        "afsTangentPoint", "acsGnssStateJ2000", "HTR1A", "HTR1B", "HTR1OD",
-        "HTR2A", "HTR2B", "HTR2OD", "HTR7A", "HTR7B", "HTR7OD", "HTR8A",
-        "HTR8B", "HTR8OD",
+        "afsGnssStateJ2000", "afsTPLongLatGeod", "afsTangentH_wgs84",
+        "afsTangentPointECI", "HTR1A", "HTR1B", "HTR1OD", "HTR2A", "HTR2B",
+        "HTR2OD", "HTR7A", "HTR7B", "HTR7OD", "HTR8A", "HTR8B", "HTR8OD",
     }
-    assert len(df) == 5
+    assert len(df) == 4
