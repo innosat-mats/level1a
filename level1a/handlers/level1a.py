@@ -265,10 +265,7 @@ def lambda_handler(event: Event, context: Context):
             **out_table.schema.metadata,
             **metadata,
         })
-        print(concat(
-            [rac_df, reconstructed_df, htr_subset],
-            axis=1,
-        ).columns)
+
         pq.write_table(
             out_table,
             f"{output_bucket}/{object.strip('/CCD')}",
