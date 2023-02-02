@@ -335,15 +335,11 @@ def lambda_handler(event: Event, context: Context):
             rac_df.index,
             max_diff=get_offset(RECONSTRUCTED_FREQUENCY),
         )
-        print("foooooooooooooooo")
-        print(htr_df.index)
-        print(rac_df.index)
         htr_subset = interpolate(
             htr_df,
             rac_df.index,
             max_diff=get_offset(HTR_FREQUENCY),
         )
-        print("baaaaaaaaaaaaaaar")
         out_table = pa.Table.from_pandas(concat(
             [rac_df, reconstructed_df, htr_subset],
             axis=1,

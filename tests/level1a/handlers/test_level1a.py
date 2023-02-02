@@ -167,7 +167,6 @@ def test_get_reconstructed_records(
     max_time,
     rows,
 ):
-    print(min_time.year, max_time.year, rows)
     out = get_reconstructed_records(reconstructed_path, min_time, max_time)
     assert list(out.columns) == [
         "afsAttitudeState",
