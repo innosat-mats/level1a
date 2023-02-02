@@ -29,16 +29,16 @@ HTR_COLUMNS = [
 ]
 
 PAYLOAD_PARTITIONS = pa.schema([
-    ("year", pa.int16),
-    ("month", pa.int8),
-    ("day", pa.int8),
-    ("hour", pa.int8),
+    ("year", pa.int16()),
+    ("month", pa.int8()),
+    ("day", pa.int8()),
+    ("hour", pa.int8()),
 ])
 
 PLATFORM_PARTITIONS = pa.schema([
-    ("year", pa.int16),
-    ("month", pa.int8),
-    ("day", pa.int8),
+    ("year", pa.int16()),
+    ("month", pa.int8()),
+    ("day", pa.int8()),
 ])
 
 
@@ -112,12 +112,42 @@ def get_htr_records(
         filter=(
             (ds.field('year') >= min_time.year)
             & (ds.field('year') <= max_time.year)
-            & (ds.field('month') >= min_time.month)
-            & (ds.field('month') <= max_time.month)
-            & (ds.field('day') >= min_time.day)
-            & (ds.field('day') <= max_time.day)
-            & (ds.field('hour') >= min_time.hour)
-            & (ds.field('hour') <= max_time.hour)
+            & (
+                (
+                    (ds.field('month') >= min_time.month)
+                    & (ds.field('month') <= max_time.month)
+                ) | (
+                    (ds.field('year') == min_time.year)
+                    & (ds.field('month') >= min_time.month)
+                ) | (
+                    (ds.field('year') == max_time.year)
+                    & (ds.field('month') <= max_time.month)
+                )
+            )
+            & (
+                (
+                    (ds.field('day') >= min_time.day)
+                    & (ds.field('day') <= max_time.day)
+                ) | (
+                    (ds.field('month') == min_time.month)
+                    & (ds.field('day') >= min_time.day)
+                ) | (
+                    (ds.field('month') == max_time.month)
+                    & (ds.field('day') >= max_time.day)
+                )
+            )
+            & (
+                (
+                    (ds.field('hour') >= min_time.hour)
+                    & (ds.field('hour') <= max_time.hour)
+                ) | (
+                    (ds.field('day') == min_time.day)
+                    & (ds.field('hour') >= min_time.hour)
+                ) | (
+                    (ds.field('day') == max_time.day)
+                    & (ds.field('hour') >= max_time.hour)
+                )
+            )
             & (ds.field('TMHeaderTime') >= min_time)
             & (ds.field('TMHeaderTime') <= max_time)
         ),
@@ -144,19 +174,43 @@ def get_reconstructed_records(
             ("afsTPLongLatGeod", pa.list_(pa.float64())),
             ("afsTangentH_wgs84", pa.list_(pa.float64())),
             ("afsTangentPointECI", pa.list_(pa.float64())),
+            ("year", pa.int16()),
+            ("month", pa.int8()),
+            ("day", pa.int8()),
         ]),
         partitioning=ds.partitioning(PLATFORM_PARTITIONS),
     ).to_table(filter=(
         (ds.field('year') >= min_time.year)
         & (ds.field('year') <= max_time.year)
-        & (ds.field('month') >= min_time.month)
-        & (ds.field('month') <= max_time.month)
-        & (ds.field('day') >= min_time.day)
-        & (ds.field('day') <= max_time.day)
+        & (
+            (
+                (ds.field('month') >= min_time.month)
+                & (ds.field('month') <= max_time.month)
+            ) | (
+                (ds.field('year') == min_time.year)
+                & (ds.field('month') >= min_time.month)
+            ) | (
+                (ds.field('year') == max_time.year)
+                & (ds.field('month') <= max_time.month)
+            )
+        )
+        & (
+            (
+                (ds.field('day') >= min_time.day)
+                & (ds.field('day') <= max_time.day)
+            ) | (
+                (ds.field('month') == min_time.month)
+                & (ds.field('day') >= min_time.day)
+            ) | (
+                (ds.field('month') == max_time.month)
+                & (ds.field('day') >= max_time.day)
+            )
+        )
         & (ds.field('time') >= min_time.asm8)
         & (ds.field('time') <= max_time.asm8)
     )).to_pandas().drop_duplicates("time").set_index("time").sort_index()
     dataset.index = dataset.index.tz_localize('utc')
+    dataset.drop(columns=["year", "month", "day"], inplace=True)
     return dataset
 
 
@@ -281,11 +335,15 @@ def lambda_handler(event: Event, context: Context):
             rac_df.index,
             max_diff=get_offset(RECONSTRUCTED_FREQUENCY),
         )
+        print("foooooooooooooooo")
+        print(htr_df.index)
+        print(rac_df.index)
         htr_subset = interpolate(
             htr_df,
             rac_df.index,
             max_diff=get_offset(HTR_FREQUENCY),
         )
+        print("baaaaaaaaaaaaaaar")
         out_table = pa.Table.from_pandas(concat(
             [rac_df, reconstructed_df, htr_subset],
             axis=1,
