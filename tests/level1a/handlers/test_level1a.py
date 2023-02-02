@@ -278,9 +278,9 @@ def test_interpolate_with_max_diff_returns_nan():
 })
 def test_lambda_handler(patched_s3):
     out_dir = os.environ["OUTPUT_BUCKET"]
-    (Path(out_dir) / "2022" / "12" / "21").mkdir(parents=True)
+    (Path(out_dir) / "2022" / "12" / "21" / "23").mkdir(parents=True)
 
-    out_file = "2022/12/21/MATS_OPS_Level0_VC1_APID100_20221221-132606_20221222-133247.parquet"  # noqa: E501
+    out_file = "2022/12/21/23/MATS_OPS_Level0_VC1_APID100_20221221-132606_20221222-133247.parquet"  # noqa: E501
 
     event = {
         "Records": [{

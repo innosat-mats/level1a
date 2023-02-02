@@ -20,7 +20,7 @@ def platform_dir(data_dir):
 
 @pytest.fixture
 def ccd_path(rac_dir):
-    return rac_dir / "CCD" / "2022" / "12" / "21" / "MATS_OPS_Level0_VC1_APID100_20221221-132606_20221222-133247.parquet"  # noqa: E501
+    return rac_dir / "CCD" / "2022" / "12" / "21" / "23" / "MATS_OPS_Level0_VC1_APID100_20221221-132606_20221222-133247.parquet"  # noqa: E501
 
 
 @pytest.fixture
