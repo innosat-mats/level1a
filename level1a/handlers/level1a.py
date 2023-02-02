@@ -28,6 +28,19 @@ HTR_COLUMNS = [
     "HTR7A", "HTR7B", "HTR7OD", "HTR8A", "HTR8B", "HTR8OD",
 ]
 
+PAYLOAD_PARTITIONS = pa.schema([
+    ("year", pa.int16),
+    ("month", pa.int8),
+    ("day", pa.int8),
+    ("hour", pa.int8),
+])
+
+PLATFORM_PARTITIONS = pa.schema([
+    ("year", pa.int16),
+    ("month", pa.int8),
+    ("day", pa.int8),
+])
+
 
 class DoesNotCover(Exception):
     pass
@@ -94,9 +107,18 @@ def get_htr_records(
     dataset = ds.dataset(
         path_or_bucket,
         filesystem=filesystem,
+        partitioning=ds.partitioning(PAYLOAD_PARTITIONS),
     ).to_table(
         filter=(
-            (ds.field('TMHeaderTime') >= min_time)
+            (ds.field('year') >= min_time.year)
+            & (ds.field('year') <= max_time.year)
+            & (ds.field('month') >= min_time.month)
+            & (ds.field('month') <= max_time.month)
+            & (ds.field('day') >= min_time.day)
+            & (ds.field('day') <= max_time.day)
+            & (ds.field('hour') >= min_time.hour)
+            & (ds.field('hour') <= max_time.hour)
+            & (ds.field('TMHeaderTime') >= min_time)
             & (ds.field('TMHeaderTime') <= max_time)
         ),
         columns=HTR_COLUMNS,
@@ -122,9 +144,16 @@ def get_reconstructed_records(
             ("afsTPLongLatGeod", pa.list_(pa.float64())),
             ("afsTangentH_wgs84", pa.list_(pa.float64())),
             ("afsTangentPointECI", pa.list_(pa.float64())),
-        ])
+        ]),
+        partitioning=ds.partitioning(PLATFORM_PARTITIONS),
     ).to_table(filter=(
-        (ds.field('time') >= min_time.asm8)
+        (ds.field('year') >= min_time.year)
+        & (ds.field('year') <= max_time.year)
+        & (ds.field('month') >= min_time.month)
+        & (ds.field('month') <= max_time.month)
+        & (ds.field('day') >= min_time.day)
+        & (ds.field('day') <= max_time.day)
+        & (ds.field('time') >= min_time.asm8)
         & (ds.field('time') <= max_time.asm8)
     )).to_pandas().drop_duplicates("time").set_index("time").sort_index()
     dataset.index = dataset.index.tz_localize('utc')
