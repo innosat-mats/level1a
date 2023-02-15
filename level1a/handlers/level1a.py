@@ -285,50 +285,54 @@ def add_satellite_position_data(dataframe: DataFrame) -> DataFrame:
     dataframe = dataframe.groupby(dataframe.index).first()
     timescale = load.timescale()
 
-    satlat, satlon, satheight = [], [], []
-    TPlat, TPlon, TPheight = [], [], []
-    nadir_sza, TPsza, TPssa = [], [], []
-    tpLT = []
-
-    for ind in dataframe.index:
-        time = timescale.from_datetime(ind.to_pydatetime())
-
-        sat_lat, sat_lon, sat_alt = eci_to_latlon(
-            time,
+    (
+        dataframe["satlat"],
+        dataframe["satlon"],
+        dataframe["satheight"],
+    ) = zip(*[
+        eci_to_latlon(
+            timescale.from_datetime(ind.to_pydatetime()),
             dataframe.afsGnssStateJ2000[ind][:3],
         )
-        satlat.append(sat_lat)
-        satlon.append(sat_lon)
-        satheight.append(sat_alt)
+        for ind in dataframe.index
+    ])
 
-        tp_lat, tp_lon, tp_alt = eci_to_latlon(
-            time,
+    (
+        dataframe["TPlat"],
+        dataframe["TPlon"],
+        dataframe["TPheight"],
+    ) = zip(*[
+        eci_to_latlon(
+            timescale.from_datetime(ind.to_pydatetime()),
             dataframe.afsTangentPointECI[ind],
         )
-        TPlat.append(tp_lat)
-        TPlon.append(tp_lon)
-        TPheight.append(tp_alt)
+        for ind in dataframe.index
+    ])
 
-        n_sza, tp_sza, tp_ssa = solar_angles(
-            time,
-            sat_lat, sat_lon, sat_alt,
-            tp_lat, tp_lon, tp_alt,
+    (
+        dataframe["nadir_sza"],
+        dataframe["TPsza"],
+        dataframe["TPssa"],
+    ) = zip(*[
+        solar_angles(
+            timescale.from_datetime(ind.to_pydatetime()),
+            dataframe.satlat[ind],
+            dataframe.satlon[ind],
+            dataframe.satheight[ind],
+            dataframe.TPlat[ind],
+            dataframe.TPlon[ind],
+            dataframe.TPheight[ind],
         )
-        nadir_sza.append(n_sza)
-        TPsza.append(tp_sza)
-        TPssa.append(tp_ssa)
-        tpLT.append(local_time(time, tp_lon))
+        for ind in dataframe.index
+    ])
 
-    dataframe["satlat"] = satlat
-    dataframe["satlon"] = satlon
-    dataframe["satheight"] = satheight
-    dataframe["TPlat"] = TPlat
-    dataframe["TPlon"] = TPlon
-    dataframe["TPheight"] = TPheight
-    dataframe["nadir_sza"] = nadir_sza
-    dataframe["TPsza"] = TPsza
-    dataframe["TPssa"] = TPssa
-    dataframe["tpLT"] = tpLT
+    dataframe["tpLT"] = [
+        local_time(
+            timescale.from_datetime(ind.to_pydatetime()),
+            dataframe.TPlon[ind],
+        )
+        for ind in dataframe.index
+    ]
 
     return dataframe
 
