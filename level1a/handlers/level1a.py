@@ -279,12 +279,13 @@ def lambda_handler(event: Event, context: Context):
         output_bucket = get_or_raise("OUTPUT_BUCKET")
         platform_bucket = get_or_raise("PLATFORM_BUCKET")
         htr_bucket = get_or_raise("HTR_BUCKET")
-        version = get_or_raise("L1A_VERSION")
+        code_version = get_or_raise("L1A_VERSION")
         region = os.environ.get('AWS_REGION', "eu-north-1")
         s3 = pa.fs.S3FileSystem(region=region)
 
         try:
-            bucket, object = parse_event_message(event)
+            bucket, object_path = parse_event_message(event)
+            output_path = object_path.strip("/CCD")
         except InvalidMessage:
             return {
                 'statusCode': HTTPStatus.NO_CONTENT,
@@ -294,20 +295,25 @@ def lambda_handler(event: Event, context: Context):
                 })
             }
 
-        if not object.endswith(".parquet"):
+        if not object_path.endswith(".parquet"):
             return {
                 'statusCode': HTTPStatus.NO_CONTENT,
                 'headers': {'Content-Type': 'application/json'},
                 'body': json.dumps({
-                    'message': f'{object} is not a parquet file, nothing to do.'
+                    'message': f'{object_path} is not a parquet file, nothing to do.'  # noqa: E501
                 })
             }
 
         rac_df, metadata = get_ccd_records(
-            f"{bucket}/{object}",
+            f"{bucket}/{object_path}",
             filesystem=s3,
         )
-        metadata.update({"L1ACode": version})
+        metadata.update({
+            "L1ACode": code_version,
+            "DataLevel": "L1A",
+            "DataBucket": output_bucket,
+            "DataPath": output_path,
+        })
 
         min_time, max_time = get_search_bounds(rac_df.index)
     except Exception as err:
@@ -344,17 +350,17 @@ def lambda_handler(event: Event, context: Context):
             [rac_df, reconstructed_df, htr_subset],
             axis=1,
         ))
-        out_table.replace_schema_metadata({
+        out_table = out_table.replace_schema_metadata({
             **out_table.schema.metadata,
             **metadata,
         })
 
         pq.write_table(
             out_table,
-            f"{output_bucket}/{object.strip('/CCD')}",
+            f"{output_bucket}/{output_path}",
             filesystem=s3,
             version='2.6',
         )
     except Exception as err:
-        msg = f"Failed to process {object} with start time {min_time} and end time {max_time}: {err}"  # noqa: E501
+        msg = f"Failed to process {object_path} with start time {min_time} and end time {max_time}: {err}"  # noqa: E501
         raise Level1AException(msg) from err
