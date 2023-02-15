@@ -15,6 +15,13 @@ from pandas import (  # type: ignore
     Timestamp,
     concat,
 )
+from skyfield.api import load  # type: ignore
+
+from .coordinates import (
+    eci_to_latlon,
+    local_time,
+    solar_angles,
+)
 
 Event = Dict[str, Any]
 Context = Any
@@ -274,6 +281,58 @@ def interpolate(
     }, index=target)
 
 
+def add_satellite_position_data(dataframe: DataFrame) -> DataFrame:
+    dataframe = dataframe.groupby(dataframe.index).first()
+    timescale = load.timescale()
+
+    satlat, satlon, satheight = [], [], []
+    TPlat, TPlon, TPheight = [], [], []
+    nadir_sza, TPsza, TPssa = [], [], []
+    tpLT = []
+
+    for ind in dataframe.index:
+        time = timescale.from_datetime(ind.to_pydatetime())
+
+        sat_lat, sat_lon, sat_alt = eci_to_latlon(
+            time,
+            dataframe.afsGnssStateJ2000[ind][:3],
+        )
+        satlat.append(sat_lat)
+        satlon.append(sat_lon)
+        satheight.append(sat_alt)
+
+        tp_lat, tp_lon, tp_alt = eci_to_latlon(
+            time,
+            dataframe.afsTangentPointECI[ind],
+        )
+        TPlat.append(tp_lat)
+        TPlon.append(tp_lon)
+        TPheight.append(tp_alt)
+
+        n_sza, tp_sza, tp_ssa = solar_angles(
+            time,
+            sat_lat, sat_lon, sat_alt,
+            tp_lat, tp_lon, tp_alt,
+        )
+        nadir_sza.append(n_sza)
+        TPsza.append(tp_sza)
+        TPssa.append(tp_ssa)
+        tpLT.append(local_time(time, tp_lon))
+
+    dataframe["satlat"] = satlat
+    dataframe["satlon"] = satlon
+    dataframe["satheight"] = satheight
+    dataframe["TPlat"] = TPlat
+    dataframe["TPlon"] = TPlon
+    dataframe["TPheight"] = TPheight
+    dataframe["nadir_sza"] = nadir_sza
+    dataframe["TPsza"] = TPsza
+    dataframe["TPssa"] = TPssa
+    dataframe["tpLT"] = tpLT
+
+    return dataframe
+
+
 def lambda_handler(event: Event, context: Context):
     try:
         output_bucket = get_or_raise("OUTPUT_BUCKET")
@@ -341,6 +400,7 @@ def lambda_handler(event: Event, context: Context):
             rac_df.index,
             max_diff=get_offset(RECONSTRUCTED_FREQUENCY),
         )
+        reconstructed_df = add_satellite_position_data(reconstructed_df)
         htr_subset = interpolate(
             htr_df,
             rac_df.index,
