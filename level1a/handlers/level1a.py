@@ -349,7 +349,8 @@ def lambda_handler(event: Event, context: Context):
         out_table = pa.Table.from_pandas(concat(
             [rac_df, reconstructed_df, htr_subset],
             axis=1,
-        )).replace_schema_metadata({
+        ))
+        out_table = out_table.replace_schema_metadata({
             **out_table.schema.metadata,
             **metadata,
         })
