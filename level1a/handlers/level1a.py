@@ -300,7 +300,7 @@ def lambda_handler(event: Event, context: Context):
                 'statusCode': HTTPStatus.NO_CONTENT,
                 'headers': {'Content-Type': 'application/json'},
                 'body': json.dumps({
-                    'message': f'{object_path} is not a parquet file, nothing to do.'
+                    'message': f'{object_path} is not a parquet file, nothing to do.'  # noqa: E501
                 })
             }
 
