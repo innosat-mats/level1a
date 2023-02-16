@@ -282,59 +282,47 @@ def interpolate(
 
 
 def add_satellite_position_data(dataframe: DataFrame) -> DataFrame:
-    dataframe = dataframe.groupby(dataframe.index).first()
+    dataframe.reset_index(inplace=True)
     timescale = load.timescale()
 
-    (
-        dataframe["satlat"],
-        dataframe["satlon"],
-        dataframe["satheight"],
-    ) = zip(*[
-        eci_to_latlon(
-            timescale.from_datetime(ind.to_pydatetime()),
-            dataframe.afsGnssStateJ2000[ind][:3],
-        )
-        for ind in dataframe.index
-    ])
+    dataframe[["satlat", "satlon", "satheight"]] = dataframe.apply(
+        lambda s: eci_to_latlon(
+            timescale.from_datetime(s.EXPDate.to_pydatetime()),
+            s.afsGnssStateJ2000[:3],
+        ),
+        axis=1,
+        result_type="expand",
+    )
 
-    (
-        dataframe["TPlat"],
-        dataframe["TPlon"],
-        dataframe["TPheight"],
-    ) = zip(*[
-        eci_to_latlon(
-            timescale.from_datetime(ind.to_pydatetime()),
-            dataframe.afsTangentPointECI[ind],
-        )
-        for ind in dataframe.index
-    ])
+    dataframe[["TPlat", "TPlon", "TPheight"]] = dataframe.apply(
+        lambda s: eci_to_latlon(
+            timescale.from_datetime(s.EXPDate.to_pydatetime()),
+            s.afsTangentPointECI,
+        ),
+        axis=1,
+        result_type="expand",
+    )
 
-    (
-        dataframe["nadir_sza"],
-        dataframe["TPsza"],
-        dataframe["TPssa"],
-    ) = zip(*[
-        solar_angles(
-            timescale.from_datetime(ind.to_pydatetime()),
-            dataframe.satlat[ind],
-            dataframe.satlon[ind],
-            dataframe.satheight[ind],
-            dataframe.TPlat[ind],
-            dataframe.TPlon[ind],
-            dataframe.TPheight[ind],
-        )
-        for ind in dataframe.index
-    ])
+    dataframe[["nadir_sza", "TPsza", "TPssa"]] = dataframe.apply(
+        lambda s: solar_angles(
+            timescale.from_datetime(s.EXPDate.to_pydatetime()),
+            s.satlat, s.satlon, s.satheight,
+            s.TPlat, s.TPlon, s.TPheight,
+        ),
+        axis=1,
+        result_type="expand",
+    )
 
-    dataframe["tpLT"] = [
-        local_time(
-            timescale.from_datetime(ind.to_pydatetime()),
-            dataframe.TPlon[ind],
-        )
-        for ind in dataframe.index
-    ]
+    dataframe["TPlocaltime"] = dataframe.apply(
+        lambda s: local_time(
+            timescale.from_datetime(s.EXPDate.to_pydatetime()),
+            s.TPlon,
+        ),
+        axis=1,
+        result_type="expand",
+    )
 
-    return dataframe
+    return dataframe.set_index("EXPDate").sort_index()
 
 
 def lambda_handler(event: Event, context: Context):
