@@ -3,3 +3,5 @@ aws-cdk.aws-lambda-python-alpha
 pandas
 pyarrow
 gitpython
+skyfield
+numpy

@@ -314,5 +314,7 @@ def test_lambda_handler(patched_s3):
         "afsGnssStateJ2000", "afsTPLongLatGeod", "afsTangentH_wgs84",
         "afsTangentPointECI", "HTR1A", "HTR1B", "HTR1OD", "HTR2A", "HTR2B",
         "HTR2OD", "HTR7A", "HTR7B", "HTR7OD", "HTR8A", "HTR8B", "HTR8OD",
+        "satlat", "satlon", "satheight", "TPlat", "TPlon", "TPheight",
+        "TPsza", "TPssa", "nadir_sza", "TPlocaltime",
     }
     assert len(df) == 4

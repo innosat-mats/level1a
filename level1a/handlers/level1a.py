@@ -15,6 +15,13 @@ from pandas import (  # type: ignore
     Timestamp,
     concat,
 )
+from skyfield.api import load  # type: ignore
+
+from .coordinates import (
+    eci_to_latlon,
+    local_time,
+    solar_angles,
+)
 
 Event = Dict[str, Any]
 Context = Any
@@ -274,6 +281,50 @@ def interpolate(
     }, index=target)
 
 
+def add_satellite_position_data(dataframe: DataFrame) -> DataFrame:
+    dataframe.reset_index(inplace=True)
+    timescale = load.timescale()
+
+    dataframe[["satlat", "satlon", "satheight"]] = dataframe.apply(
+        lambda s: eci_to_latlon(
+            timescale.from_datetime(s.EXPDate.to_pydatetime()),
+            s.afsGnssStateJ2000[:3],
+        ),
+        axis=1,
+        result_type="expand",
+    )
+
+    dataframe[["TPlat", "TPlon", "TPheight"]] = dataframe.apply(
+        lambda s: eci_to_latlon(
+            timescale.from_datetime(s.EXPDate.to_pydatetime()),
+            s.afsTangentPointECI,
+        ),
+        axis=1,
+        result_type="expand",
+    )
+
+    dataframe[["nadir_sza", "TPsza", "TPssa"]] = dataframe.apply(
+        lambda s: solar_angles(
+            timescale.from_datetime(s.EXPDate.to_pydatetime()),
+            s.satlat, s.satlon, s.satheight,
+            s.TPlat, s.TPlon, s.TPheight,
+        ),
+        axis=1,
+        result_type="expand",
+    )
+
+    dataframe["TPlocaltime"] = dataframe.apply(
+        lambda s: local_time(
+            timescale.from_datetime(s.EXPDate.to_pydatetime()),
+            s.TPlon,
+        ),
+        axis=1,
+        result_type="expand",
+    )
+
+    return dataframe.set_index("EXPDate").sort_index()
+
+
 def lambda_handler(event: Event, context: Context):
     try:
         output_bucket = get_or_raise("OUTPUT_BUCKET")
@@ -341,6 +392,7 @@ def lambda_handler(event: Event, context: Context):
             rac_df.index,
             max_diff=get_offset(RECONSTRUCTED_FREQUENCY),
         )
+        reconstructed_df = add_satellite_position_data(reconstructed_df)
         htr_subset = interpolate(
             htr_df,
             rac_df.index,
