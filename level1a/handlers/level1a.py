@@ -18,7 +18,7 @@ from pandas import (  # type: ignore
 from skyfield.api import load  # type: ignore
 
 try:
-    from mats_utils.coordinates import (
+    from mats_utils.coordinates import (  # type: ignore
         eci_to_latlon,
         local_time,
         solar_angles,
