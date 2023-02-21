@@ -89,4 +89,3 @@ class Level1AStack(Stack):
         output_bucket.grant_read_write(level1a_lambda)
         rac_bucket.grant_read(level1a_lambda)
         platform_bucket.grant_read(level1a_lambda)
-
