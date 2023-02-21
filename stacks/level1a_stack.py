@@ -1,9 +1,5 @@
 from aws_cdk import Duration, RemovalPolicy, Size, Stack
-from aws_cdk.aws_lambda import (
-    Architecture,
-    DockerImageCode,
-    DockerImageFunction,
-)
+from aws_cdk.aws_lambda import Architecture, Runtime
 from aws_cdk.aws_lambda_event_sources import SqsEventSource
 from aws_cdk.aws_lambda_python_alpha import PythonFunction  # type: ignore
 from aws_cdk.aws_s3 import Bucket, NotificationKeyFilter
@@ -45,12 +41,15 @@ class Level1AStack(Stack):
             output_bucket_name,
         )
 
-        level1a_lambda = DockerImageFunction(
+        level1a_lambda = PythonFunction(
             self,
             "Level1ALambda",
-            code=DockerImageCode.from_image_asset("."),
+            entry="level1a",
+            handler="lambda_handler",
+            index="handlers/level1a.py",
             timeout=lambda_timeout,
             architecture=Architecture.X86_64,
+            runtime=Runtime.PYTHON_3_9,
             memory_size=4096,
             ephemeral_storage_size=Size.mebibytes(512),
             environment={
