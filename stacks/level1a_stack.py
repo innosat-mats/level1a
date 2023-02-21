@@ -5,7 +5,6 @@ from aws_cdk.aws_lambda import (
     DockerImageFunction,
 )
 from aws_cdk.aws_lambda_event_sources import SqsEventSource
-from aws_cdk.aws_lambda_python_alpha import PythonFunction  # type: ignore
 from aws_cdk.aws_s3 import Bucket, NotificationKeyFilter
 from aws_cdk.aws_s3_notifications import SqsDestination
 from aws_cdk.aws_sqs import DeadLetterQueue, Queue
