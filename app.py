@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
+from typing import Optional
+
 import git
+from git import TagReference
 from aws_cdk import App
 
 from stacks.level1a_stack import Level1AStack
@@ -9,7 +12,7 @@ app = App()
 repo = git.Repo(".")
 
 try:
-    tag = repo.tags[-1]
+    tag: Optional[TagReference] = repo.tags[-1]
 except IndexError:
     tag = None
 
