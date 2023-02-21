@@ -17,11 +17,19 @@ from pandas import (  # type: ignore
 )
 from skyfield.api import load  # type: ignore
 
-from mats_utils.coordinates import (
-    eci_to_latlon,
-    local_time,
-    solar_angles,
-)
+try:
+    from mats_utils.coordinates import (
+        eci_to_latlon,
+        local_time,
+        solar_angles,
+    )
+except ImportError:
+    from .mats_utils.coordinates import (
+        eci_to_latlon,
+        local_time,
+        solar_angles,
+    )
+
 
 Event = Dict[str, Any]
 Context = Any
