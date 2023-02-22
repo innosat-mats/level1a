@@ -4,6 +4,7 @@ import pathlib
 
 from numpy.linalg import norm
 from skyfield.api import load, wgs84, Time  # type: ignore
+from skyfield.errors import EphemerisRangeError  # type: ignore
 from skyfield.positionlib import Geocentric  # type: ignore
 from skyfield.framelib import itrs  # type: ignore
 from skyfield.units import Distance  # type: ignore
@@ -62,22 +63,25 @@ def solar_angles(
     """
     earth, sun = PLANETS['earth'], PLANETS['sun']
 
-    sat_pos = earth + wgs84.latlon(sat_lat, sat_lon, elevation_m=sat_alt)
-    sun_dir = sat_pos.at(time).observe(sun).apparent()
-    obs = sun_dir.altaz()
-    nadir_sza = (90 - obs[0].degrees)
+    try:
+        sat_pos = earth + wgs84.latlon(sat_lat, sat_lon, elevation_m=sat_alt)
+        sun_dir = sat_pos.at(time).observe(sun).apparent()
+        obs = sun_dir.altaz()
+        nadir_sza = (90 - obs[0].degrees)
 
-    tp_pos = earth + wgs84.latlon(tp_lat, tp_lon, elevation_m=tp_alt)
-    fov = (tp_pos - sat_pos).at(time).position.m
-    fov = fov / norm(fov)
-    sun_dir = tp_pos.at(time).observe(sun).apparent()
-    obs = sun_dir.altaz()
-    tp_sza = 90 - obs[0].degrees
-    tp_ssa = np.rad2deg(np.arccos(
-        np.dot(fov, sun_dir.position.m / norm(sun_dir.position.m))
-    ))
+        tp_pos = earth + wgs84.latlon(tp_lat, tp_lon, elevation_m=tp_alt)
+        fov = (tp_pos - sat_pos).at(time).position.m
+        fov = fov / norm(fov)
+        sun_dir = tp_pos.at(time).observe(sun).apparent()
+        obs = sun_dir.altaz()
+        tp_sza = 90 - obs[0].degrees
+        tp_ssa = np.rad2deg(np.arccos(
+            np.dot(fov, sun_dir.position.m / norm(sun_dir.position.m))
+        ))
 
-    return nadir_sza, tp_sza, tp_ssa
+        return nadir_sza, tp_sza, tp_ssa
+    except EphemerisRangeError:
+        return np.nan, np.nan, np.nan
 
 
 def local_time(time: Time, lon: float) -> str:
@@ -85,12 +89,15 @@ def local_time(time: Time, lon: float) -> str:
 
     Arguments:
         time (Time):        skyfield Time to use
-        sat_lon (float):    longitude of interest (degrees)
+        lon (float):    longitude of interest (degrees)
 
     Returns:
         str:    local time at longitude (ISO 8601 time string)
     """
-    return (
-        time.utc_datetime()
-        + dt.timedelta(seconds=lon * SECONDS_PER_HOUR / DEGREES_PER_HOUR)
-    ).strftime('%H:%M:%S')
+    try:
+        return (
+            time.utc_datetime()
+            + dt.timedelta(seconds=lon * SECONDS_PER_HOUR / DEGREES_PER_HOUR)
+        ).strftime('%H:%M:%S')
+    except ValueError:
+        return ""

@@ -1,6 +1,7 @@
 import json
 import os
 from http import HTTPStatus
+from traceback import format_tb
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
@@ -17,11 +18,19 @@ from pandas import (  # type: ignore
 )
 from skyfield.api import load  # type: ignore
 
-from .coordinates import (
-    eci_to_latlon,
-    local_time,
-    solar_angles,
-)
+try:
+    from mats_utils.coordinates import (  # type: ignore
+        eci_to_latlon,
+        local_time,
+        solar_angles,
+    )
+except ImportError:
+    from .mats_utils.coordinates import (
+        eci_to_latlon,
+        local_time,
+        solar_angles,
+    )
+
 
 Event = Dict[str, Any]
 Context = Any
@@ -140,7 +149,7 @@ def get_htr_records(
                     & (ds.field('day') >= min_time.day)
                 ) | (
                     (ds.field('month') == max_time.month)
-                    & (ds.field('day') >= max_time.day)
+                    & (ds.field('day') <= max_time.day)
                 )
             )
             & (
@@ -152,16 +161,17 @@ def get_htr_records(
                     & (ds.field('hour') >= min_time.hour)
                 ) | (
                     (ds.field('day') == max_time.day)
-                    & (ds.field('hour') >= max_time.hour)
+                    & (ds.field('hour') <= max_time.hour)
                 )
             )
-            & (ds.field('TMHeaderTime') >= min_time)
-            & (ds.field('TMHeaderTime') <= max_time)
         ),
         columns=HTR_COLUMNS,
-    ).to_pandas().drop_duplicates("TMHeaderTime").set_index(
-        "TMHeaderTime"
-    ).sort_index()
+    ).to_pandas().drop_duplicates("TMHeaderTime")
+    dataset = dataset[
+        (dataset["TMHeaderTime"] >= min_time)
+        & (dataset["TMHeaderTime"] <= max_time)
+    ]
+    dataset = dataset.set_index("TMHeaderTime").sort_index()
     return dataset
 
 
@@ -210,12 +220,17 @@ def get_reconstructed_records(
                 & (ds.field('day') >= min_time.day)
             ) | (
                 (ds.field('month') == max_time.month)
-                & (ds.field('day') >= max_time.day)
+                & (ds.field('day') <= max_time.day)
             )
         )
         & (ds.field('time') >= min_time.asm8)
         & (ds.field('time') <= max_time.asm8)
-    )).to_pandas().drop_duplicates("time").set_index("time").sort_index()
+    )).to_pandas().drop_duplicates("time")
+    dataset = dataset[
+        (dataset["time"] >= min_time.asm8)
+        & (dataset["time"] <= max_time.asm8)
+    ]
+    dataset = dataset.set_index("time").sort_index()
     dataset.index = dataset.index.tz_localize('utc')
     dataset.drop(columns=["year", "month", "day"], inplace=True)
     return dataset
@@ -368,7 +383,9 @@ def lambda_handler(event: Event, context: Context):
 
         min_time, max_time = get_search_bounds(rac_df.index)
     except Exception as err:
-        raise Level1AException(f"Failed to initialize handler: {err}") from err
+        tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
+        msg = f"Failed to initialize handler: {err} ({tb})"
+        raise Level1AException(msg)
 
     try:
         reconstructed_df = get_reconstructed_records(
@@ -386,7 +403,12 @@ def lambda_handler(event: Event, context: Context):
 
         if not covers(reconstructed_df.index, min_time, max_time):
             raise DoesNotCover("Reconstructed data is missing timestamps")
+    except Exception as err:
+        tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
+        msg = f"Failed to get aux data for {output_path} with start time {min_time} and end time {max_time}: {err} ({tb})"  # noqa: E501
+        raise Level1AException(msg)
 
+    try:
         reconstructed_df = interpolate(
             reconstructed_df,
             rac_df.index,
@@ -398,6 +420,12 @@ def lambda_handler(event: Event, context: Context):
             rac_df.index,
             max_diff=get_offset(HTR_FREQUENCY),
         )
+    except Exception as err:
+        tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
+        msg = f"Failed to transform aux data for {output_path} with start time {min_time} and end time {max_time}: {err} ({tb})"  # noqa: E501
+        raise Level1AException(msg)
+
+    try:
         out_table = pa.Table.from_pandas(concat(
             [rac_df, reconstructed_df, htr_subset],
             axis=1,
@@ -414,5 +442,6 @@ def lambda_handler(event: Event, context: Context):
             version='2.6',
         )
     except Exception as err:
-        msg = f"Failed to process {object_path} with start time {min_time} and end time {max_time}: {err}"  # noqa: E501
-        raise Level1AException(msg) from err
+        tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
+        msg = f"Failed to store {output_path} with start time {min_time} and end time {max_time}: {err} ({tb})"  # noqa: E501
+        raise Level1AException(msg)
