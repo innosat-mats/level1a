@@ -164,6 +164,9 @@ def get_htr_records(
                     & (ds.field('hour') <= max_time.hour)
                 )
             )
+            & (ds.field('TMHeaderTime') >= min_time)
+            & (ds.field('TMHeaderTime') <= max_time)
+        ),
         ),
         columns=HTR_COLUMNS,
     ).to_pandas().drop_duplicates("TMHeaderTime").set_index(
