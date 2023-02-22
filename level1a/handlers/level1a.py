@@ -376,10 +376,10 @@ def lambda_handler(event: Event, context: Context):
         })
 
         min_time, max_time = get_search_bounds(rac_df.index)
-    except Exception as err:
+    except:
         exc = format_exc()
         msg = f"Failed to initialize handler: {exc}"
-        raise Level1AException(msg) from err
+        raise Level1AException(msg)
 
     try:
         reconstructed_df = get_reconstructed_records(
@@ -397,10 +397,10 @@ def lambda_handler(event: Event, context: Context):
 
         if not covers(reconstructed_df.index, min_time, max_time):
             raise DoesNotCover("Reconstructed data is missing timestamps")
-    except Exception as err:
+    except:
         exc = format_exc()
         msg = f"Failed to get aux data for {output_path} with start time {min_time} and end time {max_time}: {exc}"  # noqa: E501
-        raise Level1AException(msg) from err
+        raise Level1AException(msg)
 
     try:
         reconstructed_df = interpolate(
@@ -414,10 +414,10 @@ def lambda_handler(event: Event, context: Context):
             rac_df.index,
             max_diff=get_offset(HTR_FREQUENCY),
         )
-    except Exception as err:
+    except:
         exc = format_exc()
         msg = f"Failed to transform aux data for {output_path} with start time {min_time} and end time {max_time}: {exc}"  # noqa: E501
-        raise Level1AException(msg) from err
+        raise Level1AException(msg)
 
     try:
         out_table = pa.Table.from_pandas(concat(
@@ -435,7 +435,7 @@ def lambda_handler(event: Event, context: Context):
             filesystem=s3,
             version='2.6',
         )
-    except Exception as err:
+    except:
         exc = format_exc()
         msg = f"Failed to store {output_path} with start time {min_time} and end time {max_time}: {exc}"  # noqa: E501
-        raise Level1AException(msg) from err
+        raise Level1AException(msg)
