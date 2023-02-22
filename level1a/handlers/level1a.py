@@ -1,6 +1,7 @@
 import json
 import os
 from http import HTTPStatus
+from traceback import format_exc
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
@@ -163,8 +164,6 @@ def get_htr_records(
                     & (ds.field('hour') <= max_time.hour)
                 )
             )
-            & (ds.field('TMHeaderTime') >= min_time)
-            & (ds.field('TMHeaderTime') <= max_time)
         ),
         columns=HTR_COLUMNS,
     ).to_pandas().drop_duplicates("TMHeaderTime").set_index(
@@ -376,7 +375,9 @@ def lambda_handler(event: Event, context: Context):
 
         min_time, max_time = get_search_bounds(rac_df.index)
     except Exception as err:
-        raise Level1AException(f"Failed to initialize handler: {err}") from err
+        exc = format_exc(chain=False)
+        msg = f"Failed to initialize handler: {exc}"
+        raise Level1AException(msg) from err
 
     try:
         reconstructed_df = get_reconstructed_records(
@@ -394,7 +395,12 @@ def lambda_handler(event: Event, context: Context):
 
         if not covers(reconstructed_df.index, min_time, max_time):
             raise DoesNotCover("Reconstructed data is missing timestamps")
+    except Exception as err:
+        exc = format_exc(chain=False)
+        msg = f"Failed to get aux data for {output_path} with start time {min_time} and end time {max_time}: {exc}"  # noqa: E501
+        raise Level1AException(msg) from err
 
+    try:
         reconstructed_df = interpolate(
             reconstructed_df,
             rac_df.index,
@@ -406,6 +412,12 @@ def lambda_handler(event: Event, context: Context):
             rac_df.index,
             max_diff=get_offset(HTR_FREQUENCY),
         )
+    except Exception as err:
+        exc = format_exc(chain=False)
+        msg = f"Failed to transform aux data for {output_path} with start time {min_time} and end time {max_time}: {exc}"  # noqa: E501
+        raise Level1AException(msg) from err
+
+    try:
         out_table = pa.Table.from_pandas(concat(
             [rac_df, reconstructed_df, htr_subset],
             axis=1,
@@ -422,5 +434,6 @@ def lambda_handler(event: Event, context: Context):
             version='2.6',
         )
     except Exception as err:
-        msg = f"Failed to process {object_path} with start time {min_time} and end time {max_time}: {err}"  # noqa: E501
+        exc = format_exc(chain=False)
+        msg = f"Failed to store {output_path} with start time {min_time} and end time {max_time}: {exc}"  # noqa: E501
         raise Level1AException(msg) from err
