@@ -89,12 +89,15 @@ def local_time(time: Time, lon: float) -> str:
 
     Arguments:
         time (Time):        skyfield Time to use
-        sat_lon (float):    longitude of interest (degrees)
+        lon (float):    longitude of interest (degrees)
 
     Returns:
         str:    local time at longitude (ISO 8601 time string)
     """
-    return (
-        time.utc_datetime()
-        + dt.timedelta(seconds=lon * SECONDS_PER_HOUR / DEGREES_PER_HOUR)
-    ).strftime('%H:%M:%S')
+    try:
+        return (
+            time.utc_datetime()
+            + dt.timedelta(seconds=lon * SECONDS_PER_HOUR / DEGREES_PER_HOUR)
+        ).strftime('%H:%M:%S')
+    except ValueError:
+        return ""
