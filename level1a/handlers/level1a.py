@@ -148,7 +148,7 @@ def get_htr_records(
                     & (ds.field('day') >= min_time.day)
                 ) | (
                     (ds.field('month') == max_time.month)
-                    & (ds.field('day') >= max_time.day)
+                    & (ds.field('day') <= max_time.day)
                 )
             )
             & (
@@ -160,7 +160,7 @@ def get_htr_records(
                     & (ds.field('hour') >= min_time.hour)
                 ) | (
                     (ds.field('day') == max_time.day)
-                    & (ds.field('hour') >= max_time.hour)
+                    & (ds.field('hour') <= max_time.hour)
                 )
             )
             & (ds.field('TMHeaderTime') >= min_time)
@@ -218,7 +218,7 @@ def get_reconstructed_records(
                 & (ds.field('day') >= min_time.day)
             ) | (
                 (ds.field('month') == max_time.month)
-                & (ds.field('day') >= max_time.day)
+                & (ds.field('day') <= max_time.day)
             )
         )
         & (ds.field('time') >= min_time.asm8)
