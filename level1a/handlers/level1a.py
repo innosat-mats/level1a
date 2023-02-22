@@ -164,13 +164,14 @@ def get_htr_records(
                     & (ds.field('hour') <= max_time.hour)
                 )
             )
-            & (ds.field('TMHeaderTime') >= min_time)
-            & (ds.field('TMHeaderTime') <= max_time)
         ),
         columns=HTR_COLUMNS,
-    ).to_pandas().drop_duplicates("TMHeaderTime").set_index(
-        "TMHeaderTime"
-    ).sort_index()
+    ).to_pandas().drop_duplicates("TMHeaderTime")
+    dataset = dataset[
+        (dataset["TMHeaderTime"] >= min_time)
+        & (dataset["TMHeaderTime"] <= max_time)
+    ]
+    dataset = dataset.set_index("TMHeaderTime").sort_index()
     return dataset
 
 
@@ -224,7 +225,12 @@ def get_reconstructed_records(
         )
         & (ds.field('time') >= min_time.asm8)
         & (ds.field('time') <= max_time.asm8)
-    )).to_pandas().drop_duplicates("time").set_index("time").sort_index()
+    )).to_pandas().drop_duplicates("time")
+    dataset = dataset[
+        (dataset["time"] >= min_time.asm8)
+        & (dataset["time"] <= max_time.asm8)
+    ]
+    dataset = dataset.set_index("time").sort_index()
     dataset.index = dataset.index.tz_localize('utc')
     dataset.drop(columns=["year", "month", "day"], inplace=True)
     return dataset
