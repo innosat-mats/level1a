@@ -1,6 +1,7 @@
 import json
 import os
 from http import HTTPStatus
+from time import sleep
 from traceback import format_tb
 from typing import Any, Callable, Dict, Optional, Tuple
 
@@ -35,6 +36,7 @@ except ImportError:
 Event = Dict[str, Any]
 Context = Any
 
+RETRIES = 5
 OFFSET_FACTOR = 2
 RECONSTRUCTED_FREQUENCY = 1.  # Hz
 HTR_FREQUENCY = 0.1  # Hz
@@ -70,14 +72,21 @@ class Level1AException(Exception):
     pass
 
 
-def s3_backoff(caller: Callable):
-    def inner(*args, **kwargs):
-        try:
-            caller(*args, **kwargs)
-        except Exception:
-            pass
+class RetriesExceeded(Exception):
+    pass
 
-    return inner
+
+def s3_backoff(caller: Callable):
+    def wrapper(*args, **kwargs):
+        msg = ""
+        for r in range(RETRIES + 1):
+            try:
+                sleep(2 ** r - 1)
+                return caller(*args, **kwargs)
+            except Exception as err:
+                msg = str(err)
+        raise RetriesExceeded(msg)
+    return wrapper
 
 
 def get_or_raise(variable_name: str) -> str:
@@ -395,7 +404,7 @@ def lambda_handler(event: Event, context: Context):
         min_time, max_time = get_search_bounds(rac_df.index)
     except Exception as err:
         tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
-        msg = f"Failed to initialize handler: {err} ({tb})"
+        msg = f"Failed to initialize handler: {err} ({type(err)}; {tb})"
         raise Level1AException(msg)
 
     try:
