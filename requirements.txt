@@ -28,11 +28,9 @@ constructs==10.1.174
     # via
     #   aws-cdk-aws-lambda-python-alpha
     #   aws-cdk-lib
-exceptiongroup==1.0.4
-    # via cattrs
 gitdb==4.0.10
     # via gitpython
-gitpython==3.1.29
+gitpython==3.1.30
     # via -r requirements.in
 jplephem==2.18
     # via skyfield
