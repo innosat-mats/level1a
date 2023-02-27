@@ -97,7 +97,7 @@ def test_covers(indices, first, last, expect):
 
 
 def test_get_level0_records(ccd_path):
-    out, meta = get_level0_records(ccd_path)
+    out, meta = get_level0_records(ccd_path, index="EXPDate")
     expect_inds = pd.DatetimeIndex(
         [
             '2022-12-21 23:59:59.063491821+00:00',

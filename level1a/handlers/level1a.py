@@ -124,8 +124,8 @@ def covers(
 @s3_backoff
 def get_level0_records(
     path_or_bucket: str,
+    index: str,
     filesystem: pa.fs.FileSystem = None,
-    index: str = "EXPDate",
 ) -> Tuple[DataFrame, pq.FileMetaData]:
     table = pq.read_table(
         path_or_bucket,
@@ -323,7 +323,7 @@ def interpolate(
 
 def add_satellite_position_data(
     dataframe: DataFrame,
-    index: str = "EXPDate",
+    index: str,
 ) -> DataFrame:
     dataframe.reset_index(inplace=True)
     timescale = load.timescale()
@@ -402,8 +402,8 @@ def lambda_handler(event: Event, context: Context):
 
         rac_df, metadata = get_level0_records(
             f"{bucket}/{object_path}",
-            filesystem=s3,
             index=time_column,
+            filesystem=s3,
         )
         metadata.update({
             "L1ACode": code_version,
