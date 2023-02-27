@@ -119,6 +119,7 @@ def covers(
     )
 
 
+@s3_backoff
 def get_level0_records(
     path_or_bucket: str,
     filesystem: pa.fs.FileSystem = None,
@@ -134,6 +135,7 @@ def get_level0_records(
     )
 
 
+@s3_backoff
 def get_htr_records(
     path_or_bucket: str,
     min_time: Timestamp,
@@ -195,6 +197,7 @@ def get_htr_records(
     return dataset
 
 
+@s3_backoff
 def get_reconstructed_records(
     path_or_bucket: str,
     min_time: Timestamp,
