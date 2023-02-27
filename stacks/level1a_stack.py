@@ -54,7 +54,7 @@ class Level1AStack(Stack):
             "DATA_PREFIX": data_prefix,
         }
         if read_htr:
-            environment["HTR_BUCKET"] = rac_bucket_name,
+            environment["HTR_BUCKET"] = rac_bucket_name
 
         level1a_lambda = DockerImageFunction(
             self,
