@@ -454,10 +454,16 @@ def lambda_handler(event: Event, context: Context):
             raise Level1AException(msg)
 
     try:
-        out_table = pa.Table.from_pandas(concat(
-            [rac_df, reconstructed_df, htr_subset],
-            axis=1,
-        ))
+        if htr_bucket is not None:
+            out_table = pa.Table.from_pandas(concat(
+                [rac_df, reconstructed_df, htr_subset],
+                axis=1,
+            ))
+        else:
+            out_table = pa.Table.from_pandas(concat(
+                [rac_df, reconstructed_df],
+                axis=1,
+            ))
         out_table = out_table.replace_schema_metadata({
             **out_table.schema.metadata,
             **metadata,
