@@ -22,6 +22,8 @@ class Level1AStack(Stack):
         lambda_timeout: Duration = Duration.seconds(900),
         queue_retention_period: Duration = Duration.days(14),
         code_version: str = "",
+        data_prefix: str = "CCD",
+        read_htr: bool = True,
         **kwargs
     ) -> None:
         super().__init__(scope, id, **kwargs)
@@ -44,32 +46,37 @@ class Level1AStack(Stack):
             output_bucket_name,
         )
 
+        environment = {
+            "PLATFORM_BUCKET": platform_bucket_name,
+            "OUTPUT_BUCKET": output_bucket_name,
+            "HTR_BUCKET": rac_bucket_name,
+            "L1A_VERSION": code_version,
+            "DATA_PREFIX": data_prefix,
+        }
+        if read_htr:
+            environment["HTR_BUCKET"] = rac_bucket_name,
+
         level1a_lambda = DockerImageFunction(
             self,
-            "Level1ALambda",
+            f"Level1ALambda{data_prefix}",
             code=DockerImageCode.from_image_asset("."),
             timeout=lambda_timeout,
             architecture=Architecture.X86_64,
             memory_size=4096,
             ephemeral_storage_size=Size.mebibytes(512),
-            environment={
-                "PLATFORM_BUCKET": platform_bucket_name,
-                "OUTPUT_BUCKET": output_bucket_name,
-                "HTR_BUCKET": rac_bucket_name,
-                "L1A_VERSION": code_version,
-            },
+            environment=environment,
         )
 
         event_queue = Queue(
             self,
-            "ProcessCCDQueue",
+            f"Process{data_prefix}Queue",
             visibility_timeout=lambda_timeout,
             removal_policy=RemovalPolicy.RETAIN,
             dead_letter_queue=DeadLetterQueue(
                 max_receive_count=1,
                 queue=Queue(
                     self,
-                    "FailedCCDProcessQueue",
+                    f"Failed{data_prefix}ProcessQueue",
                     retention_period=queue_retention_period,
                 )
             )
@@ -77,7 +84,7 @@ class Level1AStack(Stack):
 
         rac_bucket.add_object_created_notification(
             SqsDestination(event_queue),
-            NotificationKeyFilter(prefix="CCD"),
+            NotificationKeyFilter(prefix=data_prefix),
         )
 
         level1a_lambda.add_event_source(SqsEventSource(
