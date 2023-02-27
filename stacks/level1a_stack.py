@@ -50,7 +50,6 @@ class Level1AStack(Stack):
         environment = {
             "PLATFORM_BUCKET": platform_bucket_name,
             "OUTPUT_BUCKET": output_bucket_name,
-            "HTR_BUCKET": rac_bucket_name,
             "L1A_VERSION": code_version,
             "DATA_PREFIX": data_prefix,
             "TIME_COLUMN": time_column,
