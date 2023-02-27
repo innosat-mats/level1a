@@ -275,6 +275,7 @@ def test_interpolate_with_max_diff_returns_nan():
     "PLATFORM_BUCKET": str(Path(__file__).parent / "files" / "platform"),
     "HTR_BUCKET": str(Path(__file__).parent / "files" / "rac"),
     "L1A_VERSION": "latest.and.greatest",
+    "DATA_PREFIX": "CCD",
 })
 def test_lambda_handler(patched_s3):
     out_dir = os.environ["OUTPUT_BUCKET"]
@@ -316,5 +317,54 @@ def test_lambda_handler(patched_s3):
         "HTR2OD", "HTR7A", "HTR7B", "HTR7OD", "HTR8A", "HTR8B", "HTR8OD",
         "satlat", "satlon", "satheight", "TPlat", "TPlon", "TPheight",
         "TPsza", "TPssa", "nadir_sza", "TPlocaltime",
+    }
+    assert len(df) == 4
+
+
+@patch("level1a.handlers.level1a.pa.fs.S3FileSystem", return_value=None)
+@patch.dict(os.environ, {
+    "OUTPUT_BUCKET": TemporaryDirectory().name,
+    "PLATFORM_BUCKET": str(Path(__file__).parent / "files" / "platform"),
+    "L1A_VERSION": "latest.and.greatest",
+    "DATA_PREFIX": "CCD",
+})
+def test_lambda_handler_no_htr(patched_s3):
+    out_dir = os.environ["OUTPUT_BUCKET"]
+    (Path(out_dir) / "2022" / "12" / "21" / "23").mkdir(parents=True)
+
+    out_file = "2022/12/21/23/MATS_OPS_Level0_VC1_APID100_20221221-132606_20221222-133247.parquet"  # noqa: E501
+
+    event = {
+        "Records": [{
+            "body": json.dumps({
+                "Records": [{
+                    "s3": {
+                        "bucket": {
+                            "name": str(Path(__file__).parent / "files" / "rac")
+                        },
+                        "object": {"key": f"CCD/{out_file}"}
+                    }
+                }]
+            }),
+        }],
+    }
+
+    lambda_handler(event, "")
+
+    df = pq.read_table(f"{out_dir}/{out_file}").to_pandas()
+    assert df.index.name == "EXPDate"
+    assert set(df.columns) == {
+        "OriginFile", "ProcessingTime", "RamsesTime", "QualityIndicator",
+        "LossFlag", "VCFrameCounter", "SPSequenceCount", "TMHeaderTime",
+        "TMHeaderNanoseconds", "SID", "RID", "CCDSEL", "EXPNanoseconds",
+        "WDWMode", "WDWInputDataWindow", "WDWOV", "JPEGQ", "FRAME", "NROW",
+        "NRBIN", "NRSKIP", "NCOL", "NCBINFPGAColumns", "NCBINCCDColumns",
+        "NCSKIP", "NFLUSH", "TEXPMS", "GAINMode", "GAINTiming",
+        "GAINTruncation", "TEMP", "FBINOV", "LBLNK", "TBLNK", "ZERO", "TIMING1",
+        "TIMING2", "VERSION", "TIMING3", "NBC", "BadColumns", "ImageName",
+        "ImageData", "Warnings", "Errors", "afsAttitudeState",
+        "afsGnssStateJ2000", "afsTPLongLatGeod", "afsTangentH_wgs84",
+        "afsTangentPointECI", "satlat", "satlon", "satheight", "TPlat", "TPlon",
+        "TPheight", "TPsza", "TPssa", "nadir_sza", "TPlocaltime",
     }
     assert len(df) == 4

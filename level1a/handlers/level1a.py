@@ -369,14 +369,15 @@ def lambda_handler(event: Event, context: Context):
     try:
         output_bucket = get_or_raise("OUTPUT_BUCKET")
         platform_bucket = get_or_raise("PLATFORM_BUCKET")
-        htr_bucket = get_or_raise("HTR_BUCKET")
         code_version = get_or_raise("L1A_VERSION")
+        data_prefix = get_or_raise("DATA_PREFIX")
         region = os.environ.get('AWS_REGION', "eu-north-1")
+        htr_bucket = os.environ.get("HTR_BUCKET", None)
         s3 = pa.fs.S3FileSystem(region=region)
 
         try:
             bucket, object_path = parse_event_message(event)
-            output_path = object_path.strip("/CCD")
+            output_path = object_path.strip(f"/{data_prefix}")
         except InvalidMessage:
             return {
                 'statusCode': HTTPStatus.NO_CONTENT,
@@ -434,28 +435,35 @@ def lambda_handler(event: Event, context: Context):
         msg = f"Failed to get reconstructed data for {output_path} with start time {min_time} and end time {max_time}: {err} ({type(err)}; {tb})"  # noqa: E501
         raise Level1AException(msg)
 
-    try:
-        htr_df = get_htr_records(
-            f"{htr_bucket}/HTR",
-            min_time - get_offset(HTR_FREQUENCY),
-            max_time + get_offset(HTR_FREQUENCY),
-            filesystem=s3,
-        )
-        htr_subset = interpolate(
-            htr_df,
-            rac_df.index,
-            max_diff=get_offset(HTR_FREQUENCY),
-        )
-    except Exception as err:
-        tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
-        msg = f"Failed to get HTR data for {output_path} with start time {min_time} and end time {max_time}: {err} ({type(err)}; {tb})"  # noqa: E501
-        raise Level1AException(msg)
+    if htr_bucket is not None:
+        try:
+            htr_df = get_htr_records(
+                f"{htr_bucket}/HTR",
+                min_time - get_offset(HTR_FREQUENCY),
+                max_time + get_offset(HTR_FREQUENCY),
+                filesystem=s3,
+            )
+            htr_subset = interpolate(
+                htr_df,
+                rac_df.index,
+                max_diff=get_offset(HTR_FREQUENCY),
+            )
+        except Exception as err:
+            tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
+            msg = f"Failed to get HTR data for {output_path} with start time {min_time} and end time {max_time}: {err} ({type(err)}; {tb})"  # noqa: E501
+            raise Level1AException(msg)
 
     try:
-        out_table = pa.Table.from_pandas(concat(
-            [rac_df, reconstructed_df, htr_subset],
-            axis=1,
-        ))
+        if htr_bucket is not None:
+            out_table = pa.Table.from_pandas(concat(
+                [rac_df, reconstructed_df, htr_subset],
+                axis=1,
+            ))
+        else:
+            out_table = pa.Table.from_pandas(concat(
+                [rac_df, reconstructed_df],
+                axis=1,
+            ))
         out_table = out_table.replace_schema_metadata({
             **out_table.schema.metadata,
             **metadata,
