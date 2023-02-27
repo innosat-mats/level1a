@@ -321,13 +321,16 @@ def interpolate(
     }, index=target)
 
 
-def add_satellite_position_data(dataframe: DataFrame) -> DataFrame:
+def add_satellite_position_data(
+    dataframe: DataFrame,
+    index: str = "EXPDate",
+) -> DataFrame:
     dataframe.reset_index(inplace=True)
     timescale = load.timescale()
 
     dataframe[["satlat", "satlon", "satheight"]] = dataframe.apply(
         lambda s: eci_to_latlon(
-            timescale.from_datetime(s.EXPDate.to_pydatetime()),
+            timescale.from_datetime(s[index].to_pydatetime()),
             s.afsGnssStateJ2000[:3],
         ),
         axis=1,
@@ -336,7 +339,7 @@ def add_satellite_position_data(dataframe: DataFrame) -> DataFrame:
 
     dataframe[["TPlat", "TPlon", "TPheight"]] = dataframe.apply(
         lambda s: eci_to_latlon(
-            timescale.from_datetime(s.EXPDate.to_pydatetime()),
+            timescale.from_datetime(s[index].to_pydatetime()),
             s.afsTangentPointECI,
         ),
         axis=1,
@@ -345,7 +348,7 @@ def add_satellite_position_data(dataframe: DataFrame) -> DataFrame:
 
     dataframe[["nadir_sza", "TPsza", "TPssa"]] = dataframe.apply(
         lambda s: solar_angles(
-            timescale.from_datetime(s.EXPDate.to_pydatetime()),
+            timescale.from_datetime(s[index].to_pydatetime()),
             s.satlat, s.satlon, s.satheight,
             s.TPlat, s.TPlon, s.TPheight,
         ),
@@ -355,14 +358,14 @@ def add_satellite_position_data(dataframe: DataFrame) -> DataFrame:
 
     dataframe["TPlocaltime"] = dataframe.apply(
         lambda s: local_time(
-            timescale.from_datetime(s.EXPDate.to_pydatetime()),
+            timescale.from_datetime(s[index].to_pydatetime()),
             s.TPlon,
         ),
         axis=1,
         result_type="expand",
     )
 
-    return dataframe.set_index("EXPDate").sort_index()
+    return dataframe.set_index(index).sort_index()
 
 
 def lambda_handler(event: Event, context: Context):
@@ -431,7 +434,10 @@ def lambda_handler(event: Event, context: Context):
             rac_df.index,
             max_diff=get_offset(RECONSTRUCTED_FREQUENCY),
         )
-        reconstructed_df = add_satellite_position_data(reconstructed_df)
+        reconstructed_df = add_satellite_position_data(
+            reconstructed_df,
+            index=time_column,
+        )
     except Exception as err:
         tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
         msg = f"Failed to get reconstructed data for {output_path} with start time {min_time} and end time {max_time}: {err} ({type(err)}; {tb})"  # noqa: E501
