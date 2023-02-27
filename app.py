@@ -24,6 +24,7 @@ Level1AStack(
     output_bucket_name="ops-payload-level1a-v0.5",
     code_version=f"{tag} ({repo.head.commit})",
     data_prefix="CCD",
+    time_column="EXPDate",
     read_htr=True,
 )
 
@@ -35,6 +36,7 @@ Level1AStack(
     output_bucket_name="ops-payload-level1a-pm-v0.1",
     code_version=f"{tag} ({repo.head.commit})",
     data_prefix="PM",
+    time_column="PMTime",
     read_htr=False,
 )
 

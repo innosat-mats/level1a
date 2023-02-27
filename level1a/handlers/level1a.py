@@ -371,6 +371,7 @@ def lambda_handler(event: Event, context: Context):
         platform_bucket = get_or_raise("PLATFORM_BUCKET")
         code_version = get_or_raise("L1A_VERSION")
         data_prefix = get_or_raise("DATA_PREFIX")
+        time_column = get_or_raise("TIME_COLUMN")
         region = os.environ.get('AWS_REGION', "eu-north-1")
         htr_bucket = os.environ.get("HTR_BUCKET", None)
         s3 = pa.fs.S3FileSystem(region=region)
@@ -399,6 +400,7 @@ def lambda_handler(event: Event, context: Context):
         rac_df, metadata = get_level0_records(
             f"{bucket}/{object_path}",
             filesystem=s3,
+            index=time_column,
         )
         metadata.update({
             "L1ACode": code_version,

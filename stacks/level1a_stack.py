@@ -19,10 +19,11 @@ class Level1AStack(Stack):
         rac_bucket_name: str,
         platform_bucket_name: str,
         output_bucket_name: str,
+        data_prefix: str,
+        time_column: str,
         lambda_timeout: Duration = Duration.seconds(900),
         queue_retention_period: Duration = Duration.days(14),
         code_version: str = "",
-        data_prefix: str = "CCD",
         read_htr: bool = True,
         **kwargs
     ) -> None:
@@ -52,6 +53,7 @@ class Level1AStack(Stack):
             "HTR_BUCKET": rac_bucket_name,
             "L1A_VERSION": code_version,
             "DATA_PREFIX": data_prefix,
+            "TIME_COLUMN": time_column,
         }
         if read_htr:
             environment["HTR_BUCKET"] = rac_bucket_name
