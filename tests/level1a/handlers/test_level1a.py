@@ -276,6 +276,7 @@ def test_interpolate_with_max_diff_returns_nan():
     "HTR_BUCKET": str(Path(__file__).parent / "files" / "rac"),
     "L1A_VERSION": "latest.and.greatest",
     "DATA_PREFIX": "CCD",
+    "TIME_COLUMN": "EXPDate",
 })
 def test_lambda_handler(patched_s3):
     out_dir = os.environ["OUTPUT_BUCKET"]
@@ -327,6 +328,7 @@ def test_lambda_handler(patched_s3):
     "PLATFORM_BUCKET": str(Path(__file__).parent / "files" / "platform"),
     "L1A_VERSION": "latest.and.greatest",
     "DATA_PREFIX": "CCD",
+    "TIME_COLUMN": "EXPDate",
 })
 def test_lambda_handler_no_htr(patched_s3):
     out_dir = os.environ["OUTPUT_BUCKET"]
