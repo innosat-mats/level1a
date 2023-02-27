@@ -21,10 +21,10 @@ class Level1AStack(Stack):
         output_bucket_name: str,
         data_prefix: str,
         time_column: str,
+        read_htr: bool,
         lambda_timeout: Duration = Duration.seconds(900),
         queue_retention_period: Duration = Duration.days(14),
         code_version: str = "",
-        read_htr: bool = True,
         **kwargs
     ) -> None:
         super().__init__(scope, id, **kwargs)
