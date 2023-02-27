@@ -1,8 +1,10 @@
 import json
 import os
+from functools import wraps
 from http import HTTPStatus
+from time import sleep
 from traceback import format_tb
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import numpy as np
 import pyarrow as pa  # type: ignore
@@ -35,6 +37,7 @@ except ImportError:
 Event = Dict[str, Any]
 Context = Any
 
+RETRIES = 5
 OFFSET_FACTOR = 2
 RECONSTRUCTED_FREQUENCY = 1.  # Hz
 HTR_FREQUENCY = 0.1  # Hz
@@ -70,6 +73,24 @@ class Level1AException(Exception):
     pass
 
 
+class RetriesExceeded(Exception):
+    pass
+
+
+def s3_backoff(caller: Callable):
+    @wraps(caller)
+    def wrapper(*args, **kwargs):
+        msg = ""
+        for r in range(RETRIES + 1):
+            try:
+                sleep(2 ** r - 1)
+                return caller(*args, **kwargs)
+            except Exception as err:
+                msg = str(err)
+        raise RetriesExceeded(msg)
+    return wrapper
+
+
 def get_or_raise(variable_name: str) -> str:
     if (var := os.environ.get(variable_name)) is None:
         raise EnvironmentError(
@@ -100,20 +121,23 @@ def covers(
     )
 
 
-def get_ccd_records(
+@s3_backoff
+def get_level0_records(
     path_or_bucket: str,
     filesystem: pa.fs.FileSystem = None,
+    index: str = "EXPDate",
 ) -> Tuple[DataFrame, pq.FileMetaData]:
     table = pq.read_table(
         path_or_bucket,
         filesystem=filesystem,
     )
     return (
-        table.to_pandas().set_index("EXPDate").sort_index(),
+        table.to_pandas().set_index(index).sort_index(),
         table.schema.metadata,
     )
 
 
+@s3_backoff
 def get_htr_records(
     path_or_bucket: str,
     min_time: Timestamp,
@@ -175,6 +199,7 @@ def get_htr_records(
     return dataset
 
 
+@s3_backoff
 def get_reconstructed_records(
     path_or_bucket: str,
     min_time: Timestamp,
@@ -370,7 +395,7 @@ def lambda_handler(event: Event, context: Context):
                 })
             }
 
-        rac_df, metadata = get_ccd_records(
+        rac_df, metadata = get_level0_records(
             f"{bucket}/{object_path}",
             filesystem=s3,
         )
@@ -384,7 +409,7 @@ def lambda_handler(event: Event, context: Context):
         min_time, max_time = get_search_bounds(rac_df.index)
     except Exception as err:
         tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
-        msg = f"Failed to initialize handler: {err} ({tb})"
+        msg = f"Failed to initialize handler: {err} ({type(err)}; {tb})"
         raise Level1AException(msg)
 
     try:
@@ -394,27 +419,28 @@ def lambda_handler(event: Event, context: Context):
             max_time + get_offset(RECONSTRUCTED_FREQUENCY),
             filesystem=s3,
         )
-        htr_df = get_htr_records(
-            f"{htr_bucket}/HTR",
-            min_time - get_offset(HTR_FREQUENCY),
-            max_time + get_offset(HTR_FREQUENCY),
-            filesystem=s3,
-        )
 
         if not covers(reconstructed_df.index, min_time, max_time):
             raise DoesNotCover("Reconstructed data is missing timestamps")
-    except Exception as err:
-        tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
-        msg = f"Failed to get aux data for {output_path} with start time {min_time} and end time {max_time}: {err} ({tb})"  # noqa: E501
-        raise Level1AException(msg)
 
-    try:
         reconstructed_df = interpolate(
             reconstructed_df,
             rac_df.index,
             max_diff=get_offset(RECONSTRUCTED_FREQUENCY),
         )
         reconstructed_df = add_satellite_position_data(reconstructed_df)
+    except Exception as err:
+        tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
+        msg = f"Failed to get reconstructed data for {output_path} with start time {min_time} and end time {max_time}: {err} ({type(err)}; {tb})"  # noqa: E501
+        raise Level1AException(msg)
+
+    try:
+        htr_df = get_htr_records(
+            f"{htr_bucket}/HTR",
+            min_time - get_offset(HTR_FREQUENCY),
+            max_time + get_offset(HTR_FREQUENCY),
+            filesystem=s3,
+        )
         htr_subset = interpolate(
             htr_df,
             rac_df.index,
@@ -422,7 +448,7 @@ def lambda_handler(event: Event, context: Context):
         )
     except Exception as err:
         tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
-        msg = f"Failed to transform aux data for {output_path} with start time {min_time} and end time {max_time}: {err} ({tb})"  # noqa: E501
+        msg = f"Failed to get HTR data for {output_path} with start time {min_time} and end time {max_time}: {err} ({type(err)}; {tb})"  # noqa: E501
         raise Level1AException(msg)
 
     try:
@@ -443,5 +469,5 @@ def lambda_handler(event: Event, context: Context):
         )
     except Exception as err:
         tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
-        msg = f"Failed to store {output_path} with start time {min_time} and end time {max_time}: {err} ({tb})"  # noqa: E501
+        msg = f"Failed to store {output_path} with start time {min_time} and end time {max_time}: {err} ({type(err)}; {tb})"  # noqa: E501
         raise Level1AException(msg)

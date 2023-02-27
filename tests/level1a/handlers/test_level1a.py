@@ -11,7 +11,7 @@ import pytest  # type: ignore
 from level1a.handlers.level1a import (
     HTR_COLUMNS,
     covers,
-    get_ccd_records,
+    get_level0_records,
     get_htr_records,
     get_or_raise,
     get_reconstructed_records,
@@ -96,8 +96,8 @@ def test_covers(indices, first, last, expect):
     assert covers(indices, first, last) == expect
 
 
-def test_get_ccd_records(ccd_path):
-    out, meta = get_ccd_records(ccd_path)
+def test_get_level0_records(ccd_path):
+    out, meta = get_level0_records(ccd_path)
     expect_inds = pd.DatetimeIndex(
         [
             '2022-12-21 23:59:59.063491821+00:00',
