@@ -1,5 +1,6 @@
 import json
 import os
+from functools import wraps
 from http import HTTPStatus
 from time import sleep
 from traceback import format_tb
@@ -77,6 +78,7 @@ class RetriesExceeded(Exception):
 
 
 def s3_backoff(caller: Callable):
+    @wraps(caller)
     def wrapper(*args, **kwargs):
         msg = ""
         for r in range(RETRIES + 1):
