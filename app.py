@@ -19,7 +19,7 @@ except IndexError:
 Level1AStack(
     app,
     "Level1AStackCCD",
-    rac_bucket_name="ops-payload-level0-v0.2",
+    rac_bucket_name="ops-payload-level0-v0.3",
     platform_bucket_name="ops-platform-level1a-v0.3",
     output_bucket_name="ops-payload-level1a-v0.5",
     code_version=f"{tag} ({repo.head.commit})",
@@ -31,7 +31,7 @@ Level1AStack(
 Level1AStack(
     app,
     "Level1AStackPM",
-    rac_bucket_name="ops-payload-level0-v0.2",
+    rac_bucket_name="ops-payload-level0-v0.3",
     platform_bucket_name="ops-platform-level1a-v0.3",
     output_bucket_name="ops-payload-level1a-pm-v0.1",
     code_version=f"{tag} ({repo.head.commit})",
