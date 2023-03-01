@@ -51,7 +51,6 @@ PAYLOAD_PARTITIONS = pa.schema([
     ("year", pa.int16()),
     ("month", pa.int8()),
     ("day", pa.int8()),
-    ("hour", pa.int8()),
 ])
 
 PLATFORM_PARTITIONS = pa.schema([
@@ -176,18 +175,6 @@ def get_htr_records(
                     & (ds.field('day') <= max_time.day)
                 )
             )
-            & (
-                (
-                    (ds.field('hour') >= min_time.hour)
-                    & (ds.field('hour') <= max_time.hour)
-                ) | (
-                    (ds.field('day') == min_time.day)
-                    & (ds.field('hour') >= min_time.hour)
-                ) | (
-                    (ds.field('day') == max_time.day)
-                    & (ds.field('hour') <= max_time.hour)
-                )
-            )
         ),
         columns=HTR_COLUMNS,
     ).to_pandas().drop_duplicates("TMHeaderTime")
@@ -248,8 +235,6 @@ def get_reconstructed_records(
                 & (ds.field('day') <= max_time.day)
             )
         )
-        & (ds.field('time') >= min_time.asm8)
-        & (ds.field('time') <= max_time.asm8)
     )).to_pandas().drop_duplicates("time")
     dataset = dataset[
         (dataset["time"] >= min_time.asm8)
