@@ -25,7 +25,7 @@ class Level1AStack(Stack):
         lambda_timeout: Duration = Duration.minutes(15),
         queue_retention_period: Duration = Duration.days(14),
         message_timeout: Duration = Duration.hours(12),
-        message_retries: int = 4,
+        message_attempts: int = 4,
         code_version: str = "",
         **kwargs
     ) -> None:
@@ -76,7 +76,7 @@ class Level1AStack(Stack):
             visibility_timeout=message_timeout,
             removal_policy=RemovalPolicy.RETAIN,
             dead_letter_queue=DeadLetterQueue(
-                max_receive_count=message_retries,
+                max_receive_count=message_attempts,
                 queue=Queue(
                     self,
                     f"Failed{data_prefix}ProcessQueue",
