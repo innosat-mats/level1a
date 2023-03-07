@@ -22,8 +22,10 @@ class Level1AStack(Stack):
         data_prefix: str,
         time_column: str,
         read_htr: bool,
-        lambda_timeout: Duration = Duration.seconds(900),
+        lambda_timeout: Duration = Duration.minutes(15),
         queue_retention_period: Duration = Duration.days(14),
+        message_timeout: Duration = Duration.hours(12),
+        message_attempts: int = 4,
         code_version: str = "",
         **kwargs
     ) -> None:
@@ -71,10 +73,10 @@ class Level1AStack(Stack):
         event_queue = Queue(
             self,
             f"Process{data_prefix}Queue",
-            visibility_timeout=lambda_timeout,
+            visibility_timeout=message_timeout,
             removal_policy=RemovalPolicy.RETAIN,
             dead_letter_queue=DeadLetterQueue(
-                max_receive_count=1,
+                max_receive_count=message_attempts,
                 queue=Queue(
                     self,
                     f"Failed{data_prefix}ProcessQueue",
