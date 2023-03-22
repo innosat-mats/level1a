@@ -18,6 +18,7 @@ class Level1AStack(Stack):
         id: str,
         rac_bucket_name: str,
         platform_bucket_name: str,
+        mats_schedule_bucket_name: str,
         output_bucket_name: str,
         data_prefix: str,
         time_column: str,
@@ -43,6 +44,12 @@ class Level1AStack(Stack):
             platform_bucket_name,
         )
 
+        mats_schedule_bucket = Bucket.from_bucket_name(
+            self,
+            "Level1AMatsScheduleBucket",
+            mats_schedule_bucket_name,
+        )
+
         output_bucket = Bucket.from_bucket_name(
             self,
             "Level1AOutputBucket",
@@ -51,6 +58,7 @@ class Level1AStack(Stack):
 
         environment = {
             "PLATFORM_BUCKET": platform_bucket_name,
+            "MATS_SCHEDULE_BUCKET": platform_bucket_name,
             "OUTPUT_BUCKET": output_bucket_name,
             "L1A_VERSION": code_version,
             "DATA_PREFIX": data_prefix,
@@ -98,3 +106,4 @@ class Level1AStack(Stack):
         output_bucket.grant_read_write(level1a_lambda)
         rac_bucket.grant_read(level1a_lambda)
         platform_bucket.grant_read(level1a_lambda)
+        mats_schedule_bucket.grant_read(level1a_lambda)
