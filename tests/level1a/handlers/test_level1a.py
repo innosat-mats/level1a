@@ -11,15 +11,20 @@ import pytest  # type: ignore
 from level1a.handlers.level1a import (
     HTR_COLUMNS,
     covers,
+    find_match,
     get_level0_records,
     get_htr_records,
+    get_mats_schedule_records,
     get_or_raise,
     get_reconstructed_records,
     get_search_bounds,
     interp_array,
     interpolate,
     lambda_handler,
+    match_with_schedule,
     parse_event_message,
+    MissingSchedule,
+    OverlappingSchedules,
 )
 
 
@@ -119,6 +124,23 @@ def test_get_level0_records(ccd_path):
         b'INNOSAT': b'IS-OSE-ICD-0005:1',
         b'AEZ': b'AEZICD002:I',
     }
+
+
+def test_get_mats_schedule_records(schedule_path: Path):
+    schedule_records = get_mats_schedule_records(
+        schedule_path,
+        min_time=pd.Timestamp("2023-03-08T00:00:00"),
+        max_time=pd.Timestamp("2023-03-11T00:00:00"),
+    )
+
+    assert set(schedule_records) == {
+        "schedule_description_long", "schedule_description_short",
+        "schedule_end_date", "schedule_id", "schedule_name",
+        "schedule_pointing_altitudes", "schedule_standard_altitude",
+        "schedule_start_date", "schedule_version", "schedule_xml_file",
+        "schedule_yaw_correction",
+    }
+    assert schedule_records.shape == (3, 11)
 
 
 @pytest.mark.parametrize("min_time,max_time,rows", (
@@ -269,10 +291,54 @@ def test_interpolate_with_max_diff_returns_nan():
     )
 
 
+def test_find_match(schedule: pd.DataFrame):
+    target_date = pd.DatetimeIndex(["1978-03-29T22:42:00"])[0]
+    answer = find_match(
+        target_date=target_date,
+        column="Answer",
+        dataframe=schedule,
+    )
+    assert answer == 42
+
+
+def test_find_match_raises_on_missing(schedule: pd.DataFrame):
+    target_date = pd.DatetimeIndex(["1978-12-24T22:30:00"])[0]
+    with pytest.raises(MissingSchedule):
+        find_match(
+            target_date=target_date,
+            column="Answer",
+            dataframe=schedule,
+        )
+
+
+def test_find_match_raises_on_overlap(schedule: pd.DataFrame):
+    target_date = pd.DatetimeIndex(["2010-10-10T10:10:10"])[0]
+    with pytest.raises(OverlappingSchedules):
+        find_match(
+            target_date=target_date,
+            column="Answer",
+            dataframe=schedule,
+        )
+
+
+def test_match_with_schedule(schedule: pd.DataFrame):
+    target = pd.DatetimeIndex([
+        "1978-03-08T22:42:00",
+        "1978-03-15T22:42:00",
+        "1978-03-22T22:42:00",
+        "1978-03-29T22:42:00",
+        "1978-04-05T22:42:00",
+        "1978-04-12T22:42:00",
+    ])
+    matched = match_with_schedule(schedule, target)
+    pd.testing.assert_frame_equal(matched, schedule[:6].set_index(target))
+
+
 @patch("level1a.handlers.level1a.pa.fs.S3FileSystem", return_value=None)
 @patch.dict(os.environ, {
     "OUTPUT_BUCKET": TemporaryDirectory().name,
     "PLATFORM_BUCKET": str(Path(__file__).parent / "files" / "platform"),
+    "MATS_SCHEDULE_BUCKET": str(Path(__file__).parent / "files" / "schedule"),
     "HTR_BUCKET": str(Path(__file__).parent / "files" / "rac"),
     "L1A_VERSION": "latest.and.greatest",
     "DATA_PREFIX": "CCD",
@@ -318,6 +384,11 @@ def test_lambda_handler(patched_s3):
         "HTR2OD", "HTR7A", "HTR7B", "HTR7OD", "HTR8A", "HTR8B", "HTR8OD",
         "satlat", "satlon", "satheight", "TPlat", "TPlon", "TPheight",
         "TPsza", "TPssa", "nadir_sza", "TPlocaltime",
+        "schedule_description_long", "schedule_description_short",
+        "schedule_end_date", "schedule_id", "schedule_name",
+        "schedule_pointing_altitudes", "schedule_standard_altitude",
+        "schedule_start_date", "schedule_version", "schedule_xml_file",
+        "schedule_yaw_correction",
     }
     assert len(df) == 4
 
@@ -326,6 +397,7 @@ def test_lambda_handler(patched_s3):
 @patch.dict(os.environ, {
     "OUTPUT_BUCKET": TemporaryDirectory().name,
     "PLATFORM_BUCKET": str(Path(__file__).parent / "files" / "platform"),
+    "MATS_SCHEDULE_BUCKET": str(Path(__file__).parent / "files" / "schedule"),
     "L1A_VERSION": "latest.and.greatest",
     "DATA_PREFIX": "CCD",
     "TIME_COLUMN": "EXPDate",
@@ -368,5 +440,10 @@ def test_lambda_handler_no_htr(patched_s3):
         "afsGnssStateJ2000", "afsTPLongLatGeod", "afsTangentH_wgs84",
         "afsTangentPointECI", "satlat", "satlon", "satheight", "TPlat", "TPlon",
         "TPheight", "TPsza", "TPssa", "nadir_sza", "TPlocaltime",
+        "schedule_description_long", "schedule_description_short",
+        "schedule_end_date", "schedule_id", "schedule_name",
+        "schedule_pointing_altitudes", "schedule_standard_altitude",
+        "schedule_start_date", "schedule_version", "schedule_xml_file",
+        "schedule_yaw_correction",
     }
     assert len(df) == 4
