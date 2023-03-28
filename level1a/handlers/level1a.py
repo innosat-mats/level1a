@@ -76,6 +76,14 @@ class RetriesExceeded(Exception):
     pass
 
 
+class OverlappingSchedules(Exception):
+    pass
+
+
+class MissingSchedule(Exception):
+    pass
+
+
 def s3_backoff(caller: Callable):
     @wraps(caller)
     def wrapper(*args, **kwargs):
@@ -134,6 +142,27 @@ def get_level0_records(
         table.to_pandas().set_index(index).sort_index(),
         table.schema.metadata,
     )
+
+
+@s3_backoff
+def get_mats_schedule_records(
+    path_or_bucket: str,
+    min_time: Timestamp,
+    max_time: Timestamp,
+    filesystem: pa.fs.FileSystem = None,
+) -> DataFrame:
+    dataset = ds.dataset(
+        path_or_bucket,
+        filesystem=filesystem,
+    ).to_table(
+        filter=(
+            (ds.field("start_date") <= max_time.asm8)
+            & (ds.field("end_date") >= min_time.asm8)
+        )
+    ).to_pandas()
+    new_columns = {c: f"schedule_{c}" for c in dataset.columns}
+    dataset.rename(columns=new_columns, inplace=True)
+    return dataset
 
 
 @s3_backoff
@@ -306,6 +335,34 @@ def interpolate(
     }, index=target)
 
 
+def find_match(
+    target_date: Timestamp,
+    column: str,
+    dataframe: DataFrame,
+) -> Any:
+    matches = dataframe[
+        (dataframe["schedule_start_date"] <= target_date.asm8)
+        & (dataframe["schedule_end_date"] >= target_date.asm8)
+    ].reset_index()
+    if len(matches) > 1:
+        msg = f"Overlapping schedules for target date {target_date}"
+        raise OverlappingSchedules(msg)
+    elif len(matches) == 0:
+        msg = f"Missing schedule for target date {target_date}"
+        raise MissingSchedule(msg)
+    return matches[column][0]
+
+
+def match_with_schedule(
+    dataframe: DataFrame,
+    target: DatetimeIndex,
+) -> DataFrame:
+    return DataFrame({
+        column: [find_match(ind, column, dataframe) for ind in target]
+        for column in dataframe
+    }, index=target)
+
+
 def add_satellite_position_data(
     dataframe: DataFrame,
     index: str,
@@ -357,6 +414,7 @@ def lambda_handler(event: Event, context: Context):
     try:
         output_bucket = get_or_raise("OUTPUT_BUCKET")
         platform_bucket = get_or_raise("PLATFORM_BUCKET")
+        mats_schedule_bucket = get_or_raise("MATS_SCHEDULE_BUCKET")
         code_version = get_or_raise("L1A_VERSION")
         data_prefix = get_or_raise("DATA_PREFIX")
         time_column = get_or_raise("TIME_COLUMN")
@@ -428,6 +486,22 @@ def lambda_handler(event: Event, context: Context):
         msg = f"Failed to get reconstructed data for {output_path} with start time {min_time} and end time {max_time}: {err} ({type(err)}; {tb})"  # noqa: E501
         raise Level1AException(msg)
 
+    try:
+        schedule_df = get_mats_schedule_records(
+            mats_schedule_bucket,
+            min_time,
+            max_time,
+            filesystem=s3,
+        )
+        matched_schedule = match_with_schedule(
+            schedule_df,
+            rac_df.index,
+        )
+    except Exception as err:
+        tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
+        msg = f"Failed to get schedule data for {output_path} with start time {min_time} and end time {max_time}: {err} ({type(err)}; {tb})"  # noqa: E501
+        raise Level1AException(msg)
+
     if htr_bucket is not None:
         try:
             htr_df = get_htr_records(
@@ -447,16 +521,13 @@ def lambda_handler(event: Event, context: Context):
             raise Level1AException(msg)
 
     try:
+        dataframes = [rac_df, reconstructed_df, matched_schedule]
         if htr_bucket is not None:
-            out_table = pa.Table.from_pandas(concat(
-                [rac_df, reconstructed_df, htr_subset],
-                axis=1,
-            ))
-        else:
-            out_table = pa.Table.from_pandas(concat(
-                [rac_df, reconstructed_df],
-                axis=1,
-            ))
+            dataframes.append(htr_subset)
+        out_table = pa.Table.from_pandas(concat(
+            dataframes,
+            axis=1,
+        ))
         out_table = out_table.replace_schema_metadata({
             **out_table.schema.metadata,
             **metadata,
