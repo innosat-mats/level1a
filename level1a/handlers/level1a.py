@@ -458,7 +458,7 @@ def lambda_handler(event: Event, context: Context):
         })
         if "CODE" in metadata.keys():
             metadata["RACCode"] = metadata.pop("CODE")
-        if b"CODE" in metadata.keys():
+        elif b"CODE" in metadata.keys():
             metadata["RACCode"] = metadata.pop(b"CODE")
         if "pandas" in metadata.keys():
             del metadata["pandas"]
