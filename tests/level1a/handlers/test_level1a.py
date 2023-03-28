@@ -388,7 +388,8 @@ def test_lambda_handler(patched_s3):
         "schedule_end_date", "schedule_id", "schedule_name",
         "schedule_pointing_altitudes", "schedule_standard_altitude",
         "schedule_start_date", "schedule_version", "schedule_xml_file",
-        "schedule_yaw_correction",
+        "schedule_yaw_correction", "channel", "id", "flipped",
+        "temperature_ADC", "temperature", "temperature_HTR",
     }
     assert len(df) == 4
 
@@ -399,14 +400,14 @@ def test_lambda_handler(patched_s3):
     "PLATFORM_BUCKET": str(Path(__file__).parent / "files" / "platform"),
     "MATS_SCHEDULE_BUCKET": str(Path(__file__).parent / "files" / "schedule"),
     "L1A_VERSION": "latest.and.greatest",
-    "DATA_PREFIX": "CCD",
-    "TIME_COLUMN": "EXPDate",
+    "DATA_PREFIX": "PM",
+    "TIME_COLUMN": "PMTime",
 })
 def test_lambda_handler_no_htr(patched_s3):
     out_dir = os.environ["OUTPUT_BUCKET"]
-    (Path(out_dir) / "2022" / "12" / "21" / "23").mkdir(parents=True)
+    (Path(out_dir) / "2022" / "12" / "21").mkdir(parents=True)
 
-    out_file = "2022/12/21/23/MATS_OPS_Level0_VC1_APID100_20221221-132606_20221222-133247.parquet"  # noqa: E501
+    out_file = "2022/12/21/MATS_OPS_Level0_VC1_APID100_20221221-132606_20221222-133247.parquet"  # noqa: E501
 
     event = {
         "Records": [{
@@ -416,7 +417,7 @@ def test_lambda_handler_no_htr(patched_s3):
                         "bucket": {
                             "name": str(Path(__file__).parent / "files" / "rac")
                         },
-                        "object": {"key": f"CCD/{out_file}"}
+                        "object": {"key": f"PM/{out_file}"}
                     }
                 }]
             }),
@@ -426,24 +427,19 @@ def test_lambda_handler_no_htr(patched_s3):
     lambda_handler(event, "")
 
     df = pq.read_table(f"{out_dir}/{out_file}").to_pandas()
-    assert df.index.name == "EXPDate"
     assert set(df.columns) == {
-        "OriginFile", "ProcessingTime", "RamsesTime", "QualityIndicator",
-        "LossFlag", "VCFrameCounter", "SPSequenceCount", "TMHeaderTime",
-        "TMHeaderNanoseconds", "SID", "RID", "CCDSEL", "EXPNanoseconds",
-        "WDWMode", "WDWInputDataWindow", "WDWOV", "JPEGQ", "FRAME", "NROW",
-        "NRBIN", "NRSKIP", "NCOL", "NCBINFPGAColumns", "NCBINCCDColumns",
-        "NCSKIP", "NFLUSH", "TEXPMS", "GAINMode", "GAINTiming",
-        "GAINTruncation", "TEMP", "FBINOV", "LBLNK", "TBLNK", "ZERO", "TIMING1",
-        "TIMING2", "VERSION", "TIMING3", "NBC", "BadColumns", "ImageName",
-        "ImageData", "Warnings", "Errors", "afsAttitudeState",
-        "afsGnssStateJ2000", "afsTPLongLatGeod", "afsTangentH_wgs84",
-        "afsTangentPointECI", "satlat", "satlon", "satheight", "TPlat", "TPlon",
-        "TPheight", "TPsza", "TPssa", "nadir_sza", "TPlocaltime",
-        "schedule_description_long", "schedule_description_short",
-        "schedule_end_date", "schedule_id", "schedule_name",
-        "schedule_pointing_altitudes", "schedule_standard_altitude",
-        "schedule_start_date", "schedule_version", "schedule_xml_file",
-        "schedule_yaw_correction",
+        "Errors", "LossFlag", "OriginFile", "PM1A", "PM1ACNTR", "PM1B",
+        "PM1BCNTR", "PM1S", "PM1SCNTR", "PM2A", "PM2ACNTR", "PM2B", "PM2BCNTR",
+        "PM2S", "PM2SCNTR", "PMNanoseconds", "PMTime", "ProcessingTime",
+        "QualityIndicator", "RID", "RamsesTime", "SID", "SPSequenceCount",
+        "TMHeaderNanoseconds", "TMHeaderTime", "TPheight", "TPlat",
+        "TPlocaltime", "TPlon", "TPssa", "TPsza", "VCFrameCounter", "Warnings",
+        "afsAttitudeState", "afsGnssStateJ2000", "afsTPLongLatGeod",
+        "afsTangentH_wgs84", "afsTangentPointECI", "index", "nadir_sza",
+        "satheight", "satlat", "satlon", "schedule_description_long",
+        "schedule_description_short", "schedule_end_date", "schedule_id",
+        "schedule_name", "schedule_pointing_altitudes",
+        "schedule_standard_altitude", "schedule_start_date", "schedule_version",
+        "schedule_xml_file", "schedule_yaw_correction",
     }
-    assert len(df) == 4
+    assert len(df) == 8

@@ -26,12 +26,14 @@ try:
         local_time,
         solar_angles,
     )
+    from mats_utils.ccd_item import add_ccd_item_attributes  # type: ignore
 except ImportError:
     from .mats_utils.coordinates import (
         eci_to_latlon,
         local_time,
         solar_angles,
     )
+    from .mats_utils.ccd_item import add_ccd_item_attributes
 
 
 Event = Dict[str, Any]
@@ -524,10 +526,10 @@ def lambda_handler(event: Event, context: Context):
         dataframes = [rac_df, reconstructed_df, matched_schedule]
         if htr_bucket is not None:
             dataframes.append(htr_subset)
-        out_table = pa.Table.from_pandas(concat(
-            dataframes,
-            axis=1,
-        ))
+        merged = concat(dataframes, axis=1)
+        if data_prefix == "CCD":
+            add_ccd_item_attributes(merged)
+        out_table = pa.Table.from_pandas(merged)
         out_table = out_table.replace_schema_metadata({
             **out_table.schema.metadata,
             **metadata,
