@@ -456,6 +456,14 @@ def lambda_handler(event: Event, context: Context):
             "DataBucket": output_bucket,
             "DataPath": output_path,
         })
+        if "CODE" in metadata.keys():
+            metadata["RACCode"] = metadata.pop("CODE")
+        elif b"CODE" in metadata.keys():
+            metadata["RACCode"] = metadata.pop(b"CODE")
+        if "pandas" in metadata.keys():
+            del metadata["pandas"]
+        elif b"pandas" in metadata.keys():
+            del metadata[b"pandas"]
 
         min_time, max_time = get_search_bounds(rac_df.index)
     except Exception as err:
@@ -529,9 +537,10 @@ def lambda_handler(event: Event, context: Context):
         merged = concat(dataframes, axis=1)
         if data_prefix == "CCD":
             add_ccd_item_attributes(merged)
+        for key in metadata.keys():
+            merged[key] = metadata[key]
         out_table = pa.Table.from_pandas(merged)
         out_table = out_table.replace_schema_metadata({
-            **out_table.schema.metadata,
             **metadata,
         })
 

@@ -368,28 +368,28 @@ def test_lambda_handler(patched_s3):
     lambda_handler(event, "")
 
     df = pq.read_table(f"{out_dir}/{out_file}").to_pandas()
-    assert df.index.name == "EXPDate"
     assert set(df.columns) == {
-        "OriginFile", "ProcessingTime", "RamsesTime", "QualityIndicator",
-        "LossFlag", "VCFrameCounter", "SPSequenceCount", "TMHeaderTime",
-        "TMHeaderNanoseconds", "SID", "RID", "CCDSEL", "EXPNanoseconds",
-        "WDWMode", "WDWInputDataWindow", "WDWOV", "JPEGQ", "FRAME", "NROW",
-        "NRBIN", "NRSKIP", "NCOL", "NCBINFPGAColumns", "NCBINCCDColumns",
-        "NCSKIP", "NFLUSH", "TEXPMS", "GAINMode", "GAINTiming",
-        "GAINTruncation", "TEMP", "FBINOV", "LBLNK", "TBLNK", "ZERO", "TIMING1",
-        "TIMING2", "VERSION", "TIMING3", "NBC", "BadColumns", "ImageName",
-        "ImageData", "Warnings", "Errors", "afsAttitudeState",
+        "EXPDate", "OriginFile", "ProcessingTime", "RamsesTime",
+        "QualityIndicator", "LossFlag", "VCFrameCounter", "SPSequenceCount",
+        "TMHeaderTime", "TMHeaderNanoseconds", "SID", "RID", "CCDSEL",
+        "EXPNanoseconds", "WDWMode", "WDWInputDataWindow", "WDWOV", "JPEGQ",
+        "FRAME", "NROW", "NRBIN", "NRSKIP", "NCOL", "NCBINFPGAColumns",
+        "NCBINCCDColumns", "NCSKIP", "NFLUSH", "TEXPMS", "GAINMode",
+        "GAINTiming", "GAINTruncation", "TEMP", "FBINOV", "LBLNK", "TBLNK",
+        "ZERO", "TIMING1", "TIMING2", "VERSION", "TIMING3", "NBC", "BadColumns",
+        "ImageName", "ImageData", "Warnings", "Errors", "afsAttitudeState",
         "afsGnssStateJ2000", "afsTPLongLatGeod", "afsTangentH_wgs84",
         "afsTangentPointECI", "HTR1A", "HTR1B", "HTR1OD", "HTR2A", "HTR2B",
         "HTR2OD", "HTR7A", "HTR7B", "HTR7OD", "HTR8A", "HTR8B", "HTR8OD",
-        "satlat", "satlon", "satheight", "TPlat", "TPlon", "TPheight",
-        "TPsza", "TPssa", "nadir_sza", "TPlocaltime",
-        "schedule_description_long", "schedule_description_short",
-        "schedule_end_date", "schedule_id", "schedule_name",
-        "schedule_pointing_altitudes", "schedule_standard_altitude",
-        "schedule_start_date", "schedule_version", "schedule_xml_file",
-        "schedule_yaw_correction", "channel", "id", "flipped",
-        "temperature_ADC", "temperature", "temperature_HTR",
+        "satlat", "satlon", "satheight", "TPlat", "TPlon", "TPheight", "TPsza",
+        "TPssa", "nadir_sza", "TPlocaltime", "schedule_description_long",
+        "schedule_description_short", "schedule_end_date", "schedule_id",
+        "schedule_name", "schedule_pointing_altitudes",
+        "schedule_standard_altitude", "schedule_start_date", "schedule_version",
+        "schedule_xml_file", "schedule_yaw_correction", "channel", "id",
+        "flipped", "temperature_ADC", "temperature", "temperature_HTR",
+        "RAMSES", "AEZ", "DataPath", "DataBucket", "RACCode", "L1ACode",
+        "DataLevel", "INNOSAT",
     }
     assert len(df) == 4
 
@@ -440,6 +440,7 @@ def test_lambda_handler_no_htr(patched_s3):
         "schedule_description_short", "schedule_end_date", "schedule_id",
         "schedule_name", "schedule_pointing_altitudes",
         "schedule_standard_altitude", "schedule_start_date", "schedule_version",
-        "schedule_xml_file", "schedule_yaw_correction",
+        "schedule_xml_file", "schedule_yaw_correction", "DataPath",
+        "DataBucket", "L1ACode", "DataLevel",
     }
     assert len(df) == 8
