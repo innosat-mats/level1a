@@ -339,7 +339,7 @@ def find_match(
     target_date: Timestamp,
     column: str,
     dataframe: DataFrame,
-) -> np.ndarray:
+) -> Any:
     matches = dataframe[
         (dataframe["schedule_start_date"] <= target_date.asm8)
         & (dataframe["schedule_end_date"] >= target_date.asm8)
