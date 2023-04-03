@@ -2,6 +2,8 @@
 
 from typing import Optional
 
+import os
+
 import git
 from git import TagReference
 from aws_cdk import App
@@ -16,17 +18,26 @@ try:
 except IndexError:
     tag = None
 
+development = bool(os.environ.get("MATS_DEVELOPMENT", False))
+if development:
+    output_bucket_ccd = "dev-payload-level1a"
+    output_bucket_pm = "dev-payload-level1a-pm"
+else:
+    output_bucket_ccd = "ops-payload-level1a-v0.6"
+    output_bucket_pm = "ops-payload-level1a-pm-v0.3"
+
 Level1AStack(
     app,
     "Level1AStackCCD",
     rac_bucket_name="ops-payload-level0-v0.3",
     platform_bucket_name="ops-platform-level1a-v0.3",
     mats_schedule_bucket_name="ops-schedule-v0.1",
-    output_bucket_name="ops-payload-level1a-v0.6",
+    output_bucket_name=output_bucket_ccd,
     code_version=f"{tag} ({repo.head.commit})",
     data_prefix="CCD",
     time_column="EXPDate",
     read_htr=True,
+    development=development,
 )
 
 Level1AStack(
@@ -35,11 +46,12 @@ Level1AStack(
     rac_bucket_name="ops-payload-level0-v0.3",
     platform_bucket_name="ops-platform-level1a-v0.3",
     mats_schedule_bucket_name="ops-schedule-v0.1",
-    output_bucket_name="ops-payload-level1a-pm-v0.3",
+    output_bucket_name=output_bucket_pm,
     code_version=f"{tag} ({repo.head.commit})",
     data_prefix="PM",
     time_column="PMTime",
     read_htr=False,
+    development=development,
 )
 
 app.synth()

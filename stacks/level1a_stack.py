@@ -28,31 +28,32 @@ class Level1AStack(Stack):
         message_timeout: Duration = Duration.hours(12),
         message_attempts: int = 4,
         code_version: str = "",
+        development: bool = False,
         **kwargs
     ) -> None:
         super().__init__(scope, id, **kwargs)
 
         rac_bucket = Bucket.from_bucket_name(
             self,
-            "Level1ARACBucket",
+            f"Level1ARACBucket{'Dev' if development else ''}",
             rac_bucket_name,
         )
 
         platform_bucket = Bucket.from_bucket_name(
             self,
-            "Level1APlatformBucket",
+            f"Level1APlatformBucket{'Dev' if development else ''}",
             platform_bucket_name,
         )
 
         mats_schedule_bucket = Bucket.from_bucket_name(
             self,
-            "Level1AMatsScheduleBucket",
+            f"Level1AMatsScheduleBucket{'Dev' if development else ''}",
             mats_schedule_bucket_name,
         )
 
         output_bucket = Bucket.from_bucket_name(
             self,
-            "Level1AOutputBucket",
+            f"Level1AOutputBucket{'Dev' if development else ''}",
             output_bucket_name,
         )
 
@@ -69,7 +70,7 @@ class Level1AStack(Stack):
 
         level1a_lambda = DockerImageFunction(
             self,
-            f"Level1ALambda{data_prefix}",
+            f"Level1ALambda{data_prefix}{'Dev' if development else ''}",
             code=DockerImageCode.from_image_asset("."),
             timeout=lambda_timeout,
             architecture=Architecture.X86_64,
@@ -80,14 +81,14 @@ class Level1AStack(Stack):
 
         event_queue = Queue(
             self,
-            f"Process{data_prefix}Queue",
+            f"Process{data_prefix}Queue{'Dev' if development else ''}",
             visibility_timeout=message_timeout,
             removal_policy=RemovalPolicy.RETAIN,
             dead_letter_queue=DeadLetterQueue(
                 max_receive_count=message_attempts,
                 queue=Queue(
                     self,
-                    f"Failed{data_prefix}ProcessQueue",
+                    f"Failed{data_prefix}ProcessQueue{'Dev' if development else ''}",  # noqa: E501
                     retention_period=queue_retention_period,
                 )
             )
