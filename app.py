@@ -25,9 +25,9 @@ if development:
 else:
     output_bucket_ccd = "ops-payload-level1a-v0.6"
     output_bucket_pm = "ops-payload-level1a-pm-v0.3"
-rac_bucket_name="ops-payload-level0-v0.3"
-platform_bucket_name="ops-platform-level1a-v0.3"
-mats_schedule_bucket_name="ops-mats-schedule-v0.1"
+rac_bucket_name = "ops-payload-level0-v0.3"
+platform_bucket_name = "ops-platform-level1a-v0.3"
+mats_schedule_bucket_name = "ops-mats-schedule-v0.1"
 
 Level1AStack(
     app,
