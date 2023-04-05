@@ -321,6 +321,18 @@ def test_find_match_raises_on_overlap(schedule: pd.DataFrame):
         )
 
 
+def test_find_match_does_not_raise_on_indentical_overlaps(
+    schedule: pd.DataFrame,
+):
+    target_date = pd.DatetimeIndex(["2010-10-10T10:10:10"])[0]
+    fit = find_match(
+        target_date=target_date,
+        column="Fit",
+        dataframe=schedule,
+    )
+    assert fit == -1
+
+
 def test_match_with_schedule(schedule: pd.DataFrame):
     target = pd.DatetimeIndex([
         "1978-03-08T22:42:00",

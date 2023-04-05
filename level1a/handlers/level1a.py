@@ -348,8 +348,9 @@ def find_match(
         & (dataframe["schedule_end_date"] >= target_date.floor('s').asm8)
     ].reset_index()
     if len(matches) > 1:
-        msg = f"Overlapping schedules for target date {target_date}"
-        raise OverlappingSchedules(msg)
+        if not (matches[column][0] == matches[column]).all():
+            msg = f"Overlapping schedules for target date {target_date}"
+            raise OverlappingSchedules(msg)
     elif len(matches) == 0:
         msg = f"Missing schedule for target date {target_date}"
         raise MissingSchedule(msg)
