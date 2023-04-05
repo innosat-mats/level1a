@@ -342,9 +342,10 @@ def find_match(
     column: str,
     dataframe: DataFrame,
 ) -> Any:
+    target_date.floor
     matches = dataframe[
         (dataframe["schedule_start_date"] <= target_date.asm8)
-        & (dataframe["schedule_end_date"] >= target_date.asm8)
+        & (dataframe["schedule_end_date"] >= target_date.floor('s').asm8)
     ].reset_index()
     if len(matches) > 1:
         msg = f"Overlapping schedules for target date {target_date}"
