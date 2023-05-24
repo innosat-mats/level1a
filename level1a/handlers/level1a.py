@@ -392,7 +392,7 @@ def add_satellite_position_data(
         result_type="expand",
     )
 
-    dataframe[["nadir_sza", "TPsza", "TPssa"]] = dataframe.apply(
+    dataframe[["nadir_sza", "TPsza", "TPssa", "nadir_za"]] = dataframe.apply(
         lambda s: solar_angles(
             timescale.from_datetime(s[index].to_pydatetime()),
             s.satlat, s.satlon, s.satheight,
