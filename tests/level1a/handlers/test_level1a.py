@@ -423,7 +423,7 @@ def test_lambda_handler(patched_s3):
         "schedule_standard_altitude", "schedule_start_date", "schedule_version",
         "schedule_xml_file", "schedule_yaw_correction", "channel", "id",
         "flipped", "temperature_ADC", "temperature", "temperature_HTR",
-        "RAMSES", "AEZ", "DataPath", "DataBucket", "RACCode", "L1ACode",
+        "RAMSES", "AEZ", "L1ADataPath", "L1ADataBucket", "RACCode", "L1ACode",
         "DataLevel", "INNOSAT",
     }
     assert len(df) == 4
@@ -476,7 +476,7 @@ def test_lambda_handler_no_htr(patched_s3):
         "schedule_end_date", "schedule_id", "schedule_name",
         "schedule_pointing_altitudes", "schedule_standard_altitude",
         "schedule_start_date", "schedule_version", "schedule_xml_file",
-        "schedule_yaw_correction", "DataPath", "DataBucket", "L1ACode",
+        "schedule_yaw_correction", "L1ADataPath", "L1ADataBucket", "L1ACode",
         "DataLevel",
     }
     assert len(df) == 8
