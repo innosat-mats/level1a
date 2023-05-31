@@ -479,8 +479,8 @@ def lambda_handler(event: Event, context: Context):
         metadata.update({
             "L1ACode": code_version,
             "DataLevel": "L1A",
-            "DataBucket": output_bucket,
-            "DataPath": output_path,
+            "L1ADataBucket": output_bucket,
+            "L1ADataPath": output_path,
         })
         if "CODE" in metadata.keys():
             metadata["RACCode"] = metadata.pop("CODE")
