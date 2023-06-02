@@ -322,6 +322,17 @@ def test_find_match_raises_on_missing(schedule: pd.DataFrame):
         )
 
 
+def test_find_match_raises_on_missing_with_buffer(schedule: pd.DataFrame):
+    target_date = pd.DatetimeIndex(["1978-03-29T23:30:00"])[0]
+    with pytest.raises(MissingSchedule):
+        find_match(
+            target_date=target_date,
+            column="Answer",
+            dataframe=schedule,
+            buffer=pd.Timedelta(minutes=1),
+        )
+
+
 def test_find_match_raises_on_overlap(schedule: pd.DataFrame):
     target_date = pd.DatetimeIndex(["2010-10-10T10:10:10"])[0]
     with pytest.raises(OverlappingSchedules):
@@ -332,7 +343,7 @@ def test_find_match_raises_on_overlap(schedule: pd.DataFrame):
         )
 
 
-def test_find_match_does_not_raise_on_indentical_overlaps(
+def test_find_match_does_not_raise_on_identical_overlaps(
     schedule: pd.DataFrame,
 ):
     target_date = pd.DatetimeIndex(["2010-10-10T10:10:10"])[0]
