@@ -91,7 +91,7 @@ class Level1AStack(Stack):
                 queue=Queue(
                     self,
                     "Failed" + queue_name,
-                    queuer_name="Failed" + queue_name,
+                    queue_name="Failed" + queue_name,
                     retention_period=queue_retention_period,
                 )
             )
