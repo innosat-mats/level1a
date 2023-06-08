@@ -64,6 +64,7 @@ def schedule() -> DataFrame:
                 Timestamp('2010-10-10 11:00:00.0'),
                 Timestamp('2010-10-10 12:00:00.0'),
             ],
+            "schedule_created_time": [0, 0, 0, 0, 0, 0, 0, 0],
             "Answer": [39, 40, 41, 42, 43, 44, -1, -2],
             "Fit": [1, 2, 3, 4, 5, 6, -1, -1],
         }

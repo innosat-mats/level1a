@@ -61,6 +61,11 @@ PLATFORM_PARTITIONS = pa.schema([
     ("day", pa.int8()),
 ])
 
+SCHEDULE_PARTITIONS = pa.schema([
+    ("created_time", pa.int32()),
+])
+SCHEDULE_BUFFER = Timedelta(seconds=60)
+
 
 class DoesNotCover(Exception):
     pass
@@ -156,6 +161,7 @@ def get_mats_schedule_records(
     dataset = ds.dataset(
         path_or_bucket,
         filesystem=filesystem,
+        partitioning=ds.partitioning(SCHEDULE_PARTITIONS, flavor="filename"),
     ).to_table(
         filter=(
             (ds.field("start_date") <= max_time.asm8)
@@ -284,7 +290,7 @@ def get_search_bounds(
 
 
 def get_offset(frequency: float) -> Timedelta:
-    return OFFSET_FACTOR*Timedelta(seconds=1/frequency)
+    return OFFSET_FACTOR * Timedelta(seconds=1 / frequency)
 
 
 def interp_array(
@@ -341,28 +347,46 @@ def find_match(
     target_date: Timestamp,
     column: str,
     dataframe: DataFrame,
+    buffer: Optional[Timedelta] = None,
 ) -> Any:
     target_date.floor
     matches = dataframe[
         (dataframe["schedule_start_date"] <= target_date.asm8)
         & (dataframe["schedule_end_date"] >= target_date.floor('s').asm8)
     ].reset_index()
+
     if len(matches) > 1:
+        matches = matches[
+            matches["schedule_created_time"]
+            == matches["schedule_created_time"].max()
+        ].reset_index()
         if not (matches[column][0] == matches[column]).all():
             msg = f"Overlapping schedules for target date {target_date}"
             raise OverlappingSchedules(msg)
     elif len(matches) == 0:
+        if buffer is not None:
+            return find_match(
+                target_date - buffer,
+                column,
+                dataframe,
+                buffer=None,
+            )
         msg = f"Missing schedule for target date {target_date}"
         raise MissingSchedule(msg)
+
     return matches[column][0]
 
 
 def match_with_schedule(
     dataframe: DataFrame,
     target: DatetimeIndex,
+    buffer: Optional[Timedelta] = None,
 ) -> DataFrame:
     return DataFrame({
-        column: [find_match(ind, column, dataframe) for ind in target]
+        column: [
+            find_match(ind, column, dataframe, buffer)
+            for ind in target
+        ]
         for column in dataframe
     }, index=target)
 
@@ -455,8 +479,8 @@ def lambda_handler(event: Event, context: Context):
         metadata.update({
             "L1ACode": code_version,
             "DataLevel": "L1A",
-            "DataBucket": output_bucket,
-            "DataPath": output_path,
+            "L1ADataBucket": output_bucket,
+            "L1ADataPath": output_path,
         })
         if "CODE" in metadata.keys():
             metadata["RACCode"] = metadata.pop("CODE")
@@ -508,6 +532,7 @@ def lambda_handler(event: Event, context: Context):
         matched_schedule = match_with_schedule(
             schedule_df,
             rac_df.index,
+            buffer=SCHEDULE_BUFFER,
         )
     except Exception as err:
         tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
