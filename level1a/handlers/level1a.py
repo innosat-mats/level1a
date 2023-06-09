@@ -1,5 +1,6 @@
 import json
 import os
+import warnings
 from functools import wraps
 from http import HTTPStatus
 from time import sleep
@@ -17,6 +18,7 @@ from pandas import (  # type: ignore
     Timedelta,
     Timestamp,
     concat,
+    to_datetime,
 )
 from skyfield.api import load  # type: ignore
 
@@ -65,6 +67,21 @@ SCHEDULE_PARTITIONS = pa.schema([
     ("created_time", pa.int32()),
 ])
 SCHEDULE_BUFFER = Timedelta(seconds=60)
+DUMMY_SCHEDULE: Dict[str, Any] = {
+    "schedule_created_time": 0,
+    "schedule_start_date": to_datetime(0),
+    "schedule_end_date": to_datetime(0),
+    "schedule_id": 0,
+    "schedule_name": "NONE",
+    "schedule_version": 0,
+    "schedule_standard_altitude": 0,
+    "schedule_yaw_correction": False,
+    "schedule_pointing_altitudes": [],
+    "schedule_xml_file": "",
+    "schedule_description_short": "",
+    "schedule_description_long": "",
+    "Answer": -42,
+}
 
 
 class DoesNotCover(Exception):
@@ -87,7 +104,7 @@ class OverlappingSchedules(Exception):
     pass
 
 
-class MissingSchedule(Exception):
+class MissingSchedule(Warning):
     pass
 
 
@@ -372,7 +389,8 @@ def find_match(
                 buffer=None,
             )
         msg = f"Missing schedule for target date {target_date}"
-        raise MissingSchedule(msg)
+        warnings.warn(msg, MissingSchedule)
+        return DUMMY_SCHEDULE[column]
 
     return matches[column][0]
 
@@ -564,8 +582,10 @@ def lambda_handler(event: Event, context: Context):
         merged = concat(dataframes, axis=1)
         if data_prefix == "CCD":
             add_ccd_item_attributes(merged)
-        for key in metadata.keys():
-            merged[key] = metadata[key]
+        for key, val in metadata.items():
+            merged[
+                key if isinstance(key, str) else key.decode()
+            ] = val if isinstance(val, str) else val.decode()
         out_table = pa.Table.from_pandas(merged)
         out_table = out_table.replace_schema_metadata({
             **metadata,
