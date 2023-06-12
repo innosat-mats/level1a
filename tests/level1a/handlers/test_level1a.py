@@ -312,9 +312,9 @@ def test_find_match_with_buffer(schedule: pd.DataFrame):
     assert answer == 42
 
 
-def test_find_match_raises_on_missing(schedule: pd.DataFrame):
+def test_find_match_warns_on_missing(schedule: pd.DataFrame):
     target_date = pd.DatetimeIndex(["1978-03-29T23:30:00"])[0]
-    with pytest.raises(MissingSchedule):
+    with pytest.warns(MissingSchedule, match="Missing schedule"):
         find_match(
             target_date=target_date,
             column="Answer",
@@ -322,9 +322,9 @@ def test_find_match_raises_on_missing(schedule: pd.DataFrame):
         )
 
 
-def test_find_match_raises_on_missing_with_buffer(schedule: pd.DataFrame):
+def test_find_match_warns_on_missing_with_buffer(schedule: pd.DataFrame):
     target_date = pd.DatetimeIndex(["1978-03-29T23:30:00"])[0]
-    with pytest.raises(MissingSchedule):
+    with pytest.warns(MissingSchedule, match="Missing schedule"):
         find_match(
             target_date=target_date,
             column="Answer",
