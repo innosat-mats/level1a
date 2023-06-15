@@ -12,6 +12,7 @@ import numpy as np
 
 DEGREES_PER_HOUR = 15
 SECONDS_PER_HOUR = 3600
+SECONDS_PER_DEGREE = SECONDS_PER_HOUR / DEGREES_PER_HOUR
 
 PLANETS = load(str(pathlib.Path(__file__).parent.resolve() / "de421.bsp"))
 
@@ -44,7 +45,7 @@ def solar_angles(
     tp_lat: float,
     tp_lon: float,
     tp_alt: float,
-) -> Tuple[float, float, float]:
+) -> Tuple[float, float, float, float]:
     """Function giving various solar angles.
 
     Arguments:
@@ -60,35 +61,40 @@ def solar_angles(
         float:  solar zenith angle at satellite position (degrees)
         float:  solar zenith angle at TP position (degrees)
         float:  solar scattering angle at TP position (degrees)
+        float:  solar azimuth angle at nadir imager (degrees)
     """
     earth, sun = PLANETS['earth'], PLANETS['sun']
 
     try:
         sat_pos = earth + wgs84.latlon(sat_lat, sat_lon, elevation_m=sat_alt)
         sun_dir = sat_pos.at(time).observe(sun).apparent()
-        obs = sun_dir.altaz()
-        nadir_sza = (90 - obs[0].degrees)
+        obs_sun = sun_dir.altaz()
+        nadir_sza = (90 - obs_sun[0].degrees)
 
         tp_pos = earth + wgs84.latlon(tp_lat, tp_lon, elevation_m=tp_alt)
         fov = (tp_pos - sat_pos).at(time).position.m
         fov = fov / norm(fov)
         sun_dir = tp_pos.at(time).observe(sun).apparent()
-        obs = sun_dir.altaz()
-        tp_sza = 90 - obs[0].degrees
+        obs_sun = sun_dir.altaz()
+        tp_sza = 90 - obs_sun[0].degrees
         tp_ssa = np.rad2deg(np.arccos(
             np.dot(fov, sun_dir.position.m / norm(sun_dir.position.m))
         ))
 
-        return nadir_sza, tp_sza, tp_ssa
+        limb_dir = tp_pos.at(time) - sat_pos.at(time)
+        obs_limb = limb_dir.altaz()
+        nadir_az = (obs_sun[1].degrees - obs_limb[1].degrees)
+
+        return nadir_sza, tp_sza, tp_ssa, nadir_az
     except EphemerisRangeError:
-        return np.nan, np.nan, np.nan
+        return np.nan, np.nan, np.nan, np.nan
 
 
 def local_time(time: Time, lon: float) -> str:
-    """Function giving lokal time at longitude
+    """Function giving local time at longitude
 
     Arguments:
-        time (Time):        skyfield Time to use
+        time (Time):    skyfield Time to use
         lon (float):    longitude of interest (degrees)
 
     Returns:
@@ -97,7 +103,7 @@ def local_time(time: Time, lon: float) -> str:
     try:
         return (
             time.utc_datetime()
-            + dt.timedelta(seconds=lon * SECONDS_PER_HOUR / DEGREES_PER_HOUR)
+            + dt.timedelta(seconds=lon * SECONDS_PER_DEGREE)
         ).strftime('%H:%M:%S')
     except ValueError:
         return ""

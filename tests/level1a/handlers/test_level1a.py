@@ -138,9 +138,9 @@ def test_get_mats_schedule_records(schedule_path: Path):
         "schedule_end_date", "schedule_id", "schedule_name",
         "schedule_pointing_altitudes", "schedule_standard_altitude",
         "schedule_start_date", "schedule_version", "schedule_xml_file",
-        "schedule_yaw_correction",
+        "schedule_yaw_correction", "schedule_created_time",
     }
-    assert schedule_records.shape == (3, 11)
+    assert schedule_records.shape == (3, 12)
 
 
 @pytest.mark.parametrize("min_time,max_time,rows", (
@@ -301,13 +301,35 @@ def test_find_match(schedule: pd.DataFrame):
     assert answer == 42
 
 
-def test_find_match_raises_on_missing(schedule: pd.DataFrame):
-    target_date = pd.DatetimeIndex(["1978-12-24T22:30:00"])[0]
-    with pytest.raises(MissingSchedule):
+def test_find_match_with_buffer(schedule: pd.DataFrame):
+    target_date = pd.DatetimeIndex(["1978-03-29T23:30:00"])[0]
+    answer = find_match(
+        target_date=target_date,
+        column="Answer",
+        dataframe=schedule,
+        buffer=pd.Timedelta(hours=1),
+    )
+    assert answer == 42
+
+
+def test_find_match_warns_on_missing(schedule: pd.DataFrame):
+    target_date = pd.DatetimeIndex(["1978-03-29T23:30:00"])[0]
+    with pytest.warns(MissingSchedule, match="Missing schedule"):
         find_match(
             target_date=target_date,
             column="Answer",
             dataframe=schedule,
+        )
+
+
+def test_find_match_warns_on_missing_with_buffer(schedule: pd.DataFrame):
+    target_date = pd.DatetimeIndex(["1978-03-29T23:30:00"])[0]
+    with pytest.warns(MissingSchedule, match="Missing schedule"):
+        find_match(
+            target_date=target_date,
+            column="Answer",
+            dataframe=schedule,
+            buffer=pd.Timedelta(minutes=1),
         )
 
 
@@ -319,6 +341,29 @@ def test_find_match_raises_on_overlap(schedule: pd.DataFrame):
             column="Answer",
             dataframe=schedule,
         )
+
+
+def test_find_match_does_not_raise_on_identical_overlaps(
+    schedule: pd.DataFrame,
+):
+    target_date = pd.DatetimeIndex(["2010-10-10T10:10:10"])[0]
+    fit = find_match(
+        target_date=target_date,
+        column="Fit",
+        dataframe=schedule,
+    )
+    assert fit == -1
+
+
+def test_find_match_selects_latest_file(schedule: pd.DataFrame):
+    target_date = pd.DatetimeIndex(["2010-10-10T10:10:10"])[0]
+    schedule["schedule_created_time"] = [0, 0, 0, 0, 0, 0, 0, 1]
+    answer = find_match(
+        target_date=target_date,
+        column="Answer",
+        dataframe=schedule,
+    )
+    assert answer == -2
 
 
 def test_match_with_schedule(schedule: pd.DataFrame):
@@ -382,13 +427,14 @@ def test_lambda_handler(patched_s3):
         "afsTangentPointECI", "HTR1A", "HTR1B", "HTR1OD", "HTR2A", "HTR2B",
         "HTR2OD", "HTR7A", "HTR7B", "HTR7OD", "HTR8A", "HTR8B", "HTR8OD",
         "satlat", "satlon", "satheight", "TPlat", "TPlon", "TPheight", "TPsza",
-        "TPssa", "nadir_sza", "TPlocaltime", "schedule_description_long",
+        "TPssa", "nadir_sza", "nadir_az", "TPlocaltime",
+        "schedule_created_time", "schedule_description_long",
         "schedule_description_short", "schedule_end_date", "schedule_id",
         "schedule_name", "schedule_pointing_altitudes",
         "schedule_standard_altitude", "schedule_start_date", "schedule_version",
         "schedule_xml_file", "schedule_yaw_correction", "channel", "id",
         "flipped", "temperature_ADC", "temperature", "temperature_HTR",
-        "RAMSES", "AEZ", "DataPath", "DataBucket", "RACCode", "L1ACode",
+        "RAMSES", "AEZ", "L1ADataPath", "L1ADataBucket", "RACCode", "L1ACode",
         "DataLevel", "INNOSAT",
     }
     assert len(df) == 4
@@ -436,11 +482,12 @@ def test_lambda_handler_no_htr(patched_s3):
         "TPlocaltime", "TPlon", "TPssa", "TPsza", "VCFrameCounter", "Warnings",
         "afsAttitudeState", "afsGnssStateJ2000", "afsTPLongLatGeod",
         "afsTangentH_wgs84", "afsTangentPointECI", "index", "nadir_sza",
-        "satheight", "satlat", "satlon", "schedule_description_long",
-        "schedule_description_short", "schedule_end_date", "schedule_id",
-        "schedule_name", "schedule_pointing_altitudes",
-        "schedule_standard_altitude", "schedule_start_date", "schedule_version",
-        "schedule_xml_file", "schedule_yaw_correction", "DataPath",
-        "DataBucket", "L1ACode", "DataLevel",
+        "nadir_az", "satheight", "satlat", "satlon", "schedule_created_time",
+        "schedule_description_long", "schedule_description_short",
+        "schedule_end_date", "schedule_id", "schedule_name",
+        "schedule_pointing_altitudes", "schedule_standard_altitude",
+        "schedule_start_date", "schedule_version", "schedule_xml_file",
+        "schedule_yaw_correction", "L1ADataPath", "L1ADataBucket", "L1ACode",
+        "DataLevel",
     }
     assert len(df) == 8

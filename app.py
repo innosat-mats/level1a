@@ -25,13 +25,16 @@ if development:
 else:
     output_bucket_ccd = "ops-payload-level1a-v0.6"
     output_bucket_pm = "ops-payload-level1a-pm-v0.3"
+rac_bucket_name = "ops-payload-level0-v0.3"
+platform_bucket_name = "ops-platform-level1a-v0.3"
+mats_schedule_bucket_name = "ops-mats-schedule-v0.1"
 
 Level1AStack(
     app,
-    "Level1AStackCCD",
-    rac_bucket_name="ops-payload-level0-v0.3",
-    platform_bucket_name="ops-platform-level1a-v0.3",
-    mats_schedule_bucket_name="ops-schedule-v0.1",
+    f"Level1AStackCCD{'Dev' if development else ''}",
+    rac_bucket_name=rac_bucket_name,
+    platform_bucket_name=platform_bucket_name,
+    mats_schedule_bucket_name=mats_schedule_bucket_name,
     output_bucket_name=output_bucket_ccd,
     code_version=f"{tag} ({repo.head.commit})",
     data_prefix="CCD",
@@ -42,10 +45,10 @@ Level1AStack(
 
 Level1AStack(
     app,
-    "Level1AStackPM",
-    rac_bucket_name="ops-payload-level0-v0.3",
-    platform_bucket_name="ops-platform-level1a-v0.3",
-    mats_schedule_bucket_name="ops-schedule-v0.1",
+    f"Level1AStackPM{'Dev' if development else ''}",
+    rac_bucket_name=rac_bucket_name,
+    platform_bucket_name=platform_bucket_name,
+    mats_schedule_bucket_name=mats_schedule_bucket_name,
     output_bucket_name=output_bucket_pm,
     code_version=f"{tag} ({repo.head.commit})",
     data_prefix="PM",

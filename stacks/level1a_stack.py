@@ -59,7 +59,7 @@ class Level1AStack(Stack):
 
         environment = {
             "PLATFORM_BUCKET": platform_bucket_name,
-            "MATS_SCHEDULE_BUCKET": platform_bucket_name,
+            "MATS_SCHEDULE_BUCKET": mats_schedule_bucket_name,
             "OUTPUT_BUCKET": output_bucket_name,
             "L1A_VERSION": code_version,
             "DATA_PREFIX": data_prefix,
@@ -79,16 +79,19 @@ class Level1AStack(Stack):
             environment=environment,
         )
 
+        queue_name = f"Process{data_prefix}Queue{'Dev' if development else ''}"
         event_queue = Queue(
             self,
-            f"Process{data_prefix}Queue{'Dev' if development else ''}",
+            queue_name,
+            queue_name=queue_name,
             visibility_timeout=message_timeout,
             removal_policy=RemovalPolicy.RETAIN,
             dead_letter_queue=DeadLetterQueue(
                 max_receive_count=message_attempts,
                 queue=Queue(
                     self,
-                    f"Failed{data_prefix}ProcessQueue{'Dev' if development else ''}",  # noqa: E501
+                    "Failed" + queue_name,
+                    queue_name="Failed" + queue_name,
                     retention_period=queue_retention_period,
                 )
             )

@@ -1,5 +1,6 @@
 import json
 import os
+import warnings
 from functools import wraps
 from http import HTTPStatus
 from time import sleep
@@ -17,6 +18,7 @@ from pandas import (  # type: ignore
     Timedelta,
     Timestamp,
     concat,
+    to_datetime,
 )
 from skyfield.api import load  # type: ignore
 
@@ -61,6 +63,26 @@ PLATFORM_PARTITIONS = pa.schema([
     ("day", pa.int8()),
 ])
 
+SCHEDULE_PARTITIONS = pa.schema([
+    ("created_time", pa.int32()),
+])
+SCHEDULE_BUFFER = Timedelta(seconds=60)
+DUMMY_SCHEDULE: Dict[str, Any] = {
+    "schedule_created_time": 0,
+    "schedule_start_date": to_datetime(0),
+    "schedule_end_date": to_datetime(0),
+    "schedule_id": 0,
+    "schedule_name": "NONE",
+    "schedule_version": 0,
+    "schedule_standard_altitude": 0,
+    "schedule_yaw_correction": False,
+    "schedule_pointing_altitudes": [],
+    "schedule_xml_file": "",
+    "schedule_description_short": "",
+    "schedule_description_long": "",
+    "Answer": -42,
+}
+
 
 class DoesNotCover(Exception):
     pass
@@ -82,7 +104,7 @@ class OverlappingSchedules(Exception):
     pass
 
 
-class MissingSchedule(Exception):
+class MissingSchedule(Warning):
     pass
 
 
@@ -156,6 +178,7 @@ def get_mats_schedule_records(
     dataset = ds.dataset(
         path_or_bucket,
         filesystem=filesystem,
+        partitioning=ds.partitioning(SCHEDULE_PARTITIONS, flavor="filename"),
     ).to_table(
         filter=(
             (ds.field("start_date") <= max_time.asm8)
@@ -284,7 +307,7 @@ def get_search_bounds(
 
 
 def get_offset(frequency: float) -> Timedelta:
-    return OFFSET_FACTOR*Timedelta(seconds=1/frequency)
+    return OFFSET_FACTOR * Timedelta(seconds=1 / frequency)
 
 
 def interp_array(
@@ -341,26 +364,47 @@ def find_match(
     target_date: Timestamp,
     column: str,
     dataframe: DataFrame,
+    buffer: Optional[Timedelta] = None,
 ) -> Any:
+    target_date.floor
     matches = dataframe[
         (dataframe["schedule_start_date"] <= target_date.asm8)
-        & (dataframe["schedule_end_date"] >= target_date.asm8)
+        & (dataframe["schedule_end_date"] >= target_date.floor('s').asm8)
     ].reset_index()
+
     if len(matches) > 1:
-        msg = f"Overlapping schedules for target date {target_date}"
-        raise OverlappingSchedules(msg)
+        matches = matches[
+            matches["schedule_created_time"]
+            == matches["schedule_created_time"].max()
+        ].reset_index()
+        if not (matches[column][0] == matches[column]).all():
+            msg = f"Overlapping schedules for target date {target_date}"
+            raise OverlappingSchedules(msg)
     elif len(matches) == 0:
+        if buffer is not None:
+            return find_match(
+                target_date - buffer,
+                column,
+                dataframe,
+                buffer=None,
+            )
         msg = f"Missing schedule for target date {target_date}"
-        raise MissingSchedule(msg)
+        warnings.warn(msg, MissingSchedule)
+        return DUMMY_SCHEDULE[column]
+
     return matches[column][0]
 
 
 def match_with_schedule(
     dataframe: DataFrame,
     target: DatetimeIndex,
+    buffer: Optional[Timedelta] = None,
 ) -> DataFrame:
     return DataFrame({
-        column: [find_match(ind, column, dataframe) for ind in target]
+        column: [
+            find_match(ind, column, dataframe, buffer)
+            for ind in target
+        ]
         for column in dataframe
     }, index=target)
 
@@ -390,7 +434,7 @@ def add_satellite_position_data(
         result_type="expand",
     )
 
-    dataframe[["nadir_sza", "TPsza", "TPssa"]] = dataframe.apply(
+    dataframe[["nadir_sza", "TPsza", "TPssa", "nadir_az"]] = dataframe.apply(
         lambda s: solar_angles(
             timescale.from_datetime(s[index].to_pydatetime()),
             s.satlat, s.satlon, s.satheight,
@@ -453,8 +497,8 @@ def lambda_handler(event: Event, context: Context):
         metadata.update({
             "L1ACode": code_version,
             "DataLevel": "L1A",
-            "DataBucket": output_bucket,
-            "DataPath": output_path,
+            "L1ADataBucket": output_bucket,
+            "L1ADataPath": output_path,
         })
         if "CODE" in metadata.keys():
             metadata["RACCode"] = metadata.pop("CODE")
@@ -506,6 +550,7 @@ def lambda_handler(event: Event, context: Context):
         matched_schedule = match_with_schedule(
             schedule_df,
             rac_df.index,
+            buffer=SCHEDULE_BUFFER,
         )
     except Exception as err:
         tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
@@ -537,8 +582,10 @@ def lambda_handler(event: Event, context: Context):
         merged = concat(dataframes, axis=1)
         if data_prefix == "CCD":
             add_ccd_item_attributes(merged)
-        for key in metadata.keys():
-            merged[key] = metadata[key]
+        for key, val in metadata.items():
+            merged[
+                key if isinstance(key, str) else key.decode()
+            ] = val if isinstance(val, str) else val.decode()
         out_table = pa.Table.from_pandas(merged)
         out_table = out_table.replace_schema_metadata({
             **metadata,
