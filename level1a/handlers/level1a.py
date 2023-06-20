@@ -365,6 +365,15 @@ def interpolate(
 
 
 def disambiguate_matches(matches: DataFrame) -> Any:
+    for column in matches.columns:
+        if column in ("schedule_version", "schedule_xml_file"):
+            continue
+        if not (matches[column].apply(
+            lambda x: x == matches[column][0])
+        ).all():
+            msg = f"column {column} differs for interval"
+            raise OverlappingSchedulesError(msg)
+
     generation_dates: Set[str] = set()
     execution_dates: Set[str] = set()
     versions: Set[str] = set()
@@ -389,12 +398,6 @@ def disambiguate_matches(matches: DataFrame) -> Any:
 
     matches = matches[matches["schedule_xml_file"].str.contains(desired)]
     if len(matches) != 1:
-        for column in matches.columns:
-            if not (matches[column].apply(
-                lambda x: x == matches[column][0])
-            ).all():
-                msg = f"column {column} differs for interval"
-                raise OverlappingSchedulesError(msg)
         msg = "unknown problem for interval"
         raise OverlappingSchedulesError(msg)
 
