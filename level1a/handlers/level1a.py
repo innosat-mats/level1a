@@ -76,10 +76,10 @@ DUMMY_SCHEDULE: Dict[str, Any] = {
     "schedule_version": 0,
     "schedule_standard_altitude": 0,
     "schedule_yaw_correction": False,
-    "schedule_pointing_altitudes": "[]",
+    "schedule_pointing_altitudes": [],
     "schedule_xml_file": "",
     "schedule_description_short": "",
-    "schedule_description_long": "[]",
+    "schedule_description_long": "",
     "Answer": -42,
 }
 
