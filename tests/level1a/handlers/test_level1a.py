@@ -389,6 +389,7 @@ def test_match_with_schedule(schedule: pd.DataFrame):
     "DATA_PREFIX": "CCD",
     "TIME_COLUMN": "EXPDate",
 })
+@pytest.mark.filterwarnings("ignore:Discarding nonzero nanoseconds")
 def test_lambda_handler(patched_s3):
     out_dir = os.environ["OUTPUT_BUCKET"]
     (Path(out_dir) / "2022" / "12" / "21" / "23").mkdir(parents=True)
