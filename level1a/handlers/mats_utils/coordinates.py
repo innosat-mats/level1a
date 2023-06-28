@@ -58,18 +58,15 @@ def solar_angles(
         tp_alt (float):     altitude (metres)
 
     Returns:
-        float:  solar zenith angle at satellite position (degrees)
         float:  solar zenith angle at TP position (degrees)
         float:  solar scattering angle at TP position (degrees)
+        float:  solar zenith angle at satellite position (degrees)
         float:  solar azimuth angle at nadir imager (degrees)
     """
     earth, sun = PLANETS['earth'], PLANETS['sun']
 
     try:
         sat_pos = earth + wgs84.latlon(sat_lat, sat_lon, elevation_m=sat_alt)
-        sun_dir = sat_pos.at(time).observe(sun).apparent()
-        obs_sun = sun_dir.altaz()
-        nadir_sza = (90 - obs_sun[0].degrees)
 
         tp_pos = earth + wgs84.latlon(tp_lat, tp_lon, elevation_m=tp_alt)
         fov = (tp_pos - sat_pos).at(time).position.m
@@ -81,11 +78,14 @@ def solar_angles(
             np.dot(fov, sun_dir.position.m / norm(sun_dir.position.m))
         ))
 
+        sun_dir = sat_pos.at(time).observe(sun).apparent()
+        obs_sun = sun_dir.altaz()
         limb_dir = tp_pos.at(time) - sat_pos.at(time)
         obs_limb = limb_dir.altaz()
+        nadir_sza = (90 - obs_sun[0].degrees)
         nadir_az = (obs_sun[1].degrees - obs_limb[1].degrees)
 
-        return nadir_sza, tp_sza, tp_ssa, nadir_az
+        return tp_sza, tp_ssa, nadir_sza, nadir_az
     except EphemerisRangeError:
         return np.nan, np.nan, np.nan, np.nan
 
