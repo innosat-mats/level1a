@@ -76,10 +76,10 @@ DUMMY_SCHEDULE: Dict[str, Any] = {
     "schedule_version": 0,
     "schedule_standard_altitude": 0,
     "schedule_yaw_correction": False,
-    "schedule_pointing_altitudes": "[]",
+    "schedule_pointing_altitudes": [],
     "schedule_xml_file": "",
     "schedule_description_short": "",
-    "schedule_description_long": "[]",
+    "schedule_description_long": "",
     "Answer": -42,
 }
 
@@ -365,6 +365,15 @@ def interpolate(
 
 
 def disambiguate_matches(matches: DataFrame) -> Any:
+    for column in matches.columns:
+        if column in ("schedule_version", "schedule_xml_file"):
+            continue
+        if not (matches[column].apply(
+            lambda x: x == matches[column][0])
+        ).all():
+            msg = f"column {column} differs for interval"
+            raise OverlappingSchedulesError(msg)
+
     generation_dates: Set[str] = set()
     execution_dates: Set[str] = set()
     versions: Set[str] = set()
@@ -389,12 +398,6 @@ def disambiguate_matches(matches: DataFrame) -> Any:
 
     matches = matches[matches["schedule_xml_file"].str.contains(desired)]
     if len(matches) != 1:
-        for column in matches.columns:
-            if not (matches[column].apply(
-                lambda x: x == matches[column][0])
-            ).all():
-                msg = f"column {column} differs for interval"
-                raise OverlappingSchedulesError(msg)
         msg = "unknown problem for interval"
         raise OverlappingSchedulesError(msg)
 
@@ -479,7 +482,7 @@ def add_satellite_position_data(
         result_type="expand",
     )
 
-    dataframe[["nadir_sza", "TPsza", "TPssa", "nadir_az"]] = dataframe.apply(
+    dataframe[["TPsza", "TPssa", "nadir_sza", "nadir_az"]] = dataframe.apply(
         lambda s: solar_angles(
             timescale.from_datetime(s[index].to_pydatetime()),
             s.satlat, s.satlon, s.satheight,

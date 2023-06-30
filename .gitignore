@@ -132,4 +132,4 @@ dmypy.json
 cdk.out/
 
 # GIT
-.orig
+*.orig

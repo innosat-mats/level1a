@@ -295,7 +295,7 @@ def test_interpolate_with_max_diff_returns_nan():
 
 
 @pytest.mark.parametrize("csv_data, expected", [
-    [
+    [  # Select higher version
         {
             "schedule_start_date": [
                 "2022-12-19 18:00:00",
@@ -305,7 +305,7 @@ def test_interpolate_with_max_diff_returns_nan():
                 "2022-12-19 23:59:59",
                 "2022-12-19 23:59:59",
             ],
-            "schedule_id": [3105, 3106],
+            "schedule_id": [3105, 3105],
             "schedule_name": ["MODE1y", "MODE1y"],
             "schedule_version": [2, 1],
             "schedule_standard_altitude": [92500, 92500],
@@ -321,12 +321,12 @@ def test_interpolate_with_max_diff_returns_nan():
             ],
             "schedule_description_long": [
                 "Mode 1. JPEGQ = 90  (should have been 80)",
-                "Mode 1. JPEGQ = 90",
+                "Mode 1. JPEGQ = 90  (should have been 80)",
             ],
         },
         "STP-MTS-3105_22121922121902TMODE1y.xml",
     ],
-    [
+    [  # Select latest generation date
         {
             "schedule_start_date": ["2023-04-13", "2023-04-13"],
             "schedule_end_date": [
@@ -485,6 +485,7 @@ def test_dropna_arrays():
     "DATA_PREFIX": "CCD",
     "TIME_COLUMN": "EXPDate",
 })
+@pytest.mark.filterwarnings("ignore:Discarding nonzero nanoseconds")
 def test_lambda_handler(patched_s3):
     out_dir = os.environ["OUTPUT_BUCKET"]
     (Path(out_dir) / "2022" / "12" / "21" / "23").mkdir(parents=True)
