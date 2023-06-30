@@ -2,6 +2,7 @@ import json
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Any, Dict
 from unittest.mock import patch
 
 import numpy as np
@@ -11,6 +12,7 @@ import pytest  # type: ignore
 from level1a.handlers.level1a import (
     HTR_COLUMNS,
     covers,
+    disambiguate_matches,
     find_match,
     get_level0_records,
     get_htr_records,
@@ -24,7 +26,7 @@ from level1a.handlers.level1a import (
     match_with_schedule,
     parse_event_message,
     MissingSchedule,
-    OverlappingSchedules,
+    OverlappingSchedulesError,
 )
 
 
@@ -291,6 +293,98 @@ def test_interpolate_with_max_diff_returns_nan():
     )
 
 
+@pytest.mark.parametrize("csv_data, expected", [
+    [  # Select higher version
+        {
+            "schedule_start_date": [
+                "2022-12-19 18:00:00",
+                "2022-12-19 18:00:00",
+            ],
+            "schedule_end_date": [
+                "2022-12-19 23:59:59",
+                "2022-12-19 23:59:59",
+            ],
+            "schedule_id": [3105, 3105],
+            "schedule_name": ["MODE1y", "MODE1y"],
+            "schedule_version": [2, 1],
+            "schedule_standard_altitude": [92500, 92500],
+            "schedule_yaw_correction": [True, True],
+            "schedule_pointing_altitudes": [[], []],
+            "schedule_xml_file": [
+                "STP-MTS-3105_22121922121902TMODE1y.xml",
+                "STP-MTS-3106_22121922121901TMODE1y.xml",
+            ],
+            "schedule_description_short": [
+                "Operational mode",
+                "Operational mode",
+            ],
+            "schedule_description_long": [
+                "Mode 1. JPEGQ = 90  (should have been 80)",
+                "Mode 1. JPEGQ = 90  (should have been 80)",
+            ],
+        },
+        "STP-MTS-3105_22121922121902TMODE1y.xml",
+    ],
+    [  # Select latest generation date
+        {
+            "schedule_start_date": ["2023-04-13", "2023-04-13"],
+            "schedule_end_date": [
+                "2023-04-13 23:59:56",
+                "2023-04-13 23:59:56",
+            ],
+            "schedule_id": [1207, 1207],
+            "schedule_name": ["CROPD", "CROPD"],
+            "schedule_version": [3, 3],
+            "schedule_standard_altitude": [87500, 87500],
+            "schedule_yaw_correction": [True, True],
+            "schedule_pointing_altitudes": [[], []],
+            "schedule_xml_file": [
+                "STP-MTS-1207_23041323041103TCROPD.xml",
+                "STP-MTS-1207_23041323041003TCROPD.xml",
+            ],
+            "schedule_description_short": ["", ""],
+            "schedule_description_long": ["", ""],
+        },
+        "STP-MTS-1207_23041323041103TCROPD.xml",
+    ]
+])
+def test_disambiguate_matches(csv_data: dict, expected: str):
+    dataframe = pd.DataFrame.from_dict(csv_data)
+    matches = disambiguate_matches(dataframe)
+    pd.testing.assert_frame_equal(
+        matches,
+        dataframe[dataframe["schedule_xml_file"] == expected].reset_index(),
+    )
+
+
+@pytest.mark.parametrize("csv_data, expected", [
+    [
+        {
+            "Answer": [42, 43],
+            "schedule_xml_file": [
+                "STP-MTS-1207_23041323041103TCROPD.xml",
+                "STP-MTS-1207_23041323041103TCROPD.xml",
+            ],
+        },
+        "column Answer differs"
+    ],
+    [
+        {
+            "Answer": [42, 42],
+            "schedule_xml_file": [
+                "STP-MTS-1207_23041323041103TCROPD.xml",
+                "STP-MTS-1207_23041223041103TCROPD.xml",
+            ],
+        },
+        "execution dates differ",
+    ],
+])
+def test_disambiguate_matches_raises(csv_data: Dict[str, Any], expected: str):
+    dataframe = pd.DataFrame.from_dict(csv_data)
+    with pytest.raises(OverlappingSchedulesError, match=expected):
+        _ = disambiguate_matches(dataframe)
+
+
 def test_find_match(schedule: pd.DataFrame):
     target_date = pd.DatetimeIndex(["1978-03-29T22:42:00"])[0]
     answer = find_match(
@@ -330,16 +424,6 @@ def test_find_match_warns_on_missing_with_buffer(schedule: pd.DataFrame):
             column="Answer",
             dataframe=schedule,
             buffer=pd.Timedelta(minutes=1),
-        )
-
-
-def test_find_match_raises_on_overlap(schedule: pd.DataFrame):
-    target_date = pd.DatetimeIndex(["2010-10-10T10:10:10"])[0]
-    with pytest.raises(OverlappingSchedules):
-        find_match(
-            target_date=target_date,
-            column="Answer",
-            dataframe=schedule,
         )
 
 

@@ -5,7 +5,7 @@ from functools import wraps
 from http import HTTPStatus
 from time import sleep
 from traceback import format_tb
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Set, Tuple
 
 import numpy as np
 import pyarrow as pa  # type: ignore
@@ -100,7 +100,11 @@ class RetriesExceeded(Exception):
     pass
 
 
-class OverlappingSchedules(Exception):
+class OverlappingSchedulesError(Exception):
+    pass
+
+
+class OverlappingSchedulesWarning(Warning):
     pass
 
 
@@ -360,6 +364,46 @@ def interpolate(
     }, index=target)
 
 
+def disambiguate_matches(matches: DataFrame) -> Any:
+    for column in matches.columns:
+        if column in ("schedule_version", "schedule_xml_file"):
+            continue
+        if not (matches[column].apply(
+            lambda x: x == matches[column][0])
+        ).all():
+            msg = f"column {column} differs for interval"
+            raise OverlappingSchedulesError(msg)
+
+    generation_dates: Set[str] = set()
+    execution_dates: Set[str] = set()
+    versions: Set[str] = set()
+    for data in matches["schedule_xml_file"]:
+        temp = data.split("_")[1]
+        execution_dates = execution_dates.union({temp[0: 6]})
+        generation_dates = generation_dates.union({temp[6: 12]})
+        versions = versions.union({temp[12: 14]})
+
+    if len(execution_dates) != 1:
+        msg = f"execution dates differ for interval: {execution_dates}"
+        raise OverlappingSchedulesError(msg)
+    execution_date = list(execution_dates)[0]
+
+    if len(generation_dates) != 1:
+        desired = "_" + execution_date + sorted(generation_dates)[-1]
+    elif len(versions) != 1:
+        generation_date = list(generation_dates)[0]
+        desired = "_" + execution_date + generation_date + sorted(versions)[-1]
+    else:
+        desired = ""
+
+    matches = matches[matches["schedule_xml_file"].str.contains(desired)]
+    if len(matches) != 1:
+        msg = "unknown problem for interval"
+        raise OverlappingSchedulesError(msg)
+
+    return matches.reset_index()
+
+
 def find_match(
     target_date: Timestamp,
     column: str,
@@ -379,7 +423,11 @@ def find_match(
         ].reset_index()
         if not (matches[column][0] == matches[column]).all():
             msg = f"Overlapping schedules for target date {target_date}"
-            raise OverlappingSchedules(msg)
+            try:
+                matches = disambiguate_matches(matches)
+                warnings.warn(msg, OverlappingSchedulesWarning)
+            except OverlappingSchedulesError as err:
+                raise OverlappingSchedulesError(f"{msg}: {err}")
     elif len(matches) == 0:
         if buffer is not None:
             return find_match(
