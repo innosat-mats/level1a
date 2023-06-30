@@ -13,6 +13,7 @@ from level1a.handlers.level1a import (
     HTR_COLUMNS,
     covers,
     disambiguate_matches,
+    dropna_arrays,
     find_match,
     get_level0_records,
     get_htr_records,
@@ -461,6 +462,17 @@ def test_match_with_schedule(schedule: pd.DataFrame):
     ])
     matched = match_with_schedule(schedule, target)
     pd.testing.assert_frame_equal(matched, schedule[:6].set_index(target))
+
+
+def test_dropna_arrays():
+    dataframe = pd.DataFrame.from_dict({
+        "Squared": [[np.nan, 1764], [1764, 1764]],
+        "Answer": [-42, 42],
+    })
+    pd.testing.assert_frame_equal(
+        dropna_arrays(dataframe, columns=["Squared"]),
+        dataframe[dataframe.Answer == 42],
+    )
 
 
 @patch("level1a.handlers.level1a.pa.fs.S3FileSystem", return_value=None)

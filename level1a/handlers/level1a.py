@@ -5,7 +5,7 @@ from functools import wraps
 from http import HTTPStatus
 from time import sleep
 from traceback import format_tb
-from typing import Any, Callable, Dict, Optional, Set, Tuple
+from typing import Any, Callable, Dict, Optional, Set, Tuple, List
 
 import numpy as np
 import pyarrow as pa  # type: ignore
@@ -504,6 +504,23 @@ def add_satellite_position_data(
     return dataframe.set_index(index).sort_index()
 
 
+def dropna_arrays(
+    dataframe: DataFrame,
+    columns: List[str] = [
+        "afsAttitudeState",
+        "afsGnssStateJ2000",
+        "afsTPLongLatGeod",
+        "afsTangentH_wgs84",
+        "afsTangentPointECI",
+    ],
+) -> DataFrame:
+    for column in columns:
+        dataframe = dataframe[
+            dataframe[column].apply(lambda arr: not np.isnan(arr).any())
+        ]
+    return dataframe
+
+
 def lambda_handler(event: Event, context: Context):
     try:
         output_bucket = get_or_raise("OUTPUT_BUCKET")
@@ -628,6 +645,7 @@ def lambda_handler(event: Event, context: Context):
         if htr_bucket is not None:
             dataframes.append(htr_subset)
         merged = concat(dataframes, axis=1)
+        merged = dropna_arrays(merged)
         if data_prefix == "CCD":
             add_ccd_item_attributes(merged)
         for key, val in metadata.items():
