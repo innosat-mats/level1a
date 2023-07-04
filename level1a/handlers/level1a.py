@@ -424,7 +424,7 @@ def find_match(
         if not (matches[column].apply(
             lambda x: repr(x) == repr(matches[column][0]))
         ).all():
-            msg = f"Overlapping schedules for target date {target_date} and matches {matches} (column {column})"  # noqa: E501
+            msg = f"Overlapping schedules for target date {target_date} and column ({column})"  # noqa: E501
             try:
                 matches = disambiguate_matches(matches)
                 warnings.warn(msg, OverlappingSchedulesWarning)
