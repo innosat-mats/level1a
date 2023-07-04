@@ -421,8 +421,8 @@ def find_match(
             matches["schedule_created_time"]
             == matches["schedule_created_time"].max()
         ].reset_index()
-        if not (matches[column][0] == matches[column]).all():
-            msg = f"Overlapping schedules for target date {target_date}"
+        if not all([matches[column][0] == m for m in matches[column][:]]):
+            msg = f"Overlapping schedules for target date {target_date} and column {column}"  # noqa: E501
             try:
                 matches = disambiguate_matches(matches)
                 warnings.warn(msg, OverlappingSchedulesWarning)
