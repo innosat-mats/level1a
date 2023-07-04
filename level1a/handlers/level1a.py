@@ -369,7 +369,7 @@ def disambiguate_matches(matches: DataFrame) -> Any:
         if column in ("schedule_version", "schedule_xml_file"):
             continue
         if not (matches[column].apply(
-            lambda x: x == matches[column][0])
+            lambda x: repr(x) == repr(matches[column][0]))
         ).all():
             msg = f"column {column} differs for interval"
             raise OverlappingSchedulesError(msg)
@@ -421,7 +421,9 @@ def find_match(
             matches["schedule_created_time"]
             == matches["schedule_created_time"].max()
         ].reset_index()
-        if not all([matches[column][0] == m for m in matches[column][:]]):
+        if not (matches[column].apply(
+            lambda x: repr(x) == repr(matches[column][0]))
+        ).all():
             msg = f"Overlapping schedules for target date {target_date} and matches {matches} (column {column})"  # noqa: E501
             try:
                 matches = disambiguate_matches(matches)
