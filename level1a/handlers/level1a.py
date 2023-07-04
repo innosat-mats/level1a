@@ -5,7 +5,7 @@ from functools import wraps
 from http import HTTPStatus
 from time import sleep
 from traceback import format_tb
-from typing import Any, Callable, Dict, Optional, Set, Tuple, List
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 import numpy as np
 import pyarrow as pa  # type: ignore
@@ -76,10 +76,10 @@ DUMMY_SCHEDULE: Dict[str, Any] = {
     "schedule_version": 0,
     "schedule_standard_altitude": 0,
     "schedule_yaw_correction": False,
-    "schedule_pointing_altitudes": "[]",
+    "schedule_pointing_altitudes": [],
     "schedule_xml_file": "",
     "schedule_description_short": "",
-    "schedule_description_long": "[]",
+    "schedule_description_long": "",
     "Answer": -42,
 }
 
