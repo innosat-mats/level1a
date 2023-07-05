@@ -366,7 +366,18 @@ def interpolate(
 
 def disambiguate_matches(matches: DataFrame) -> Any:
     for column in matches.columns:
-        if column in ("schedule_version", "schedule_xml_file"):
+        if column not in (
+            "schedule_created_time",
+            "schedule_start_date",
+            "schedule_end_date",
+            "schedule_id",
+            "schedule_name",
+            "schedule_standard_altitude",
+            "schedule_yaw_correction",
+            "schedule_pointing_altitudes",
+            "schedule_description_short",
+            "schedule_description_long",
+        ):
             continue
         if not (matches[column].apply(
             lambda x: repr(x) == repr(matches[column][0]))
