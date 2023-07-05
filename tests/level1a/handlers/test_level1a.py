@@ -354,24 +354,24 @@ def test_disambiguate_matches(csv_data: dict, expected: str):
     matches = disambiguate_matches(dataframe)
     pd.testing.assert_frame_equal(
         matches,
-        dataframe[dataframe["schedule_xml_file"] == expected].reset_index(),
+        dataframe[dataframe["schedule_xml_file"] == expected],
     )
 
 
 @pytest.mark.parametrize("csv_data, expected", [
     [
         {
-            "Answer": [42, 43],
+            "schedule_pointing_altitudes": [42, 43],
             "schedule_xml_file": [
                 "STP-MTS-1207_23041323041103TCROPD.xml",
                 "STP-MTS-1207_23041323041103TCROPD.xml",
             ],
         },
-        "column Answer differs"
+        "column schedule_pointing_altitudes differs"
     ],
     [
         {
-            "Answer": [42, 42],
+            "schedule_pointing_altitudes": [42, 42],
             "schedule_xml_file": [
                 "STP-MTS-1207_23041323041103TCROPD.xml",
                 "STP-MTS-1207_23041223041103TCROPD.xml",

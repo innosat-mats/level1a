@@ -366,10 +366,21 @@ def interpolate(
 
 def disambiguate_matches(matches: DataFrame) -> Any:
     for column in matches.columns:
-        if column in ("schedule_version", "schedule_xml_file"):
+        if column not in (
+            "schedule_created_time",
+            "schedule_start_date",
+            "schedule_end_date",
+            "schedule_id",
+            "schedule_name",
+            "schedule_standard_altitude",
+            "schedule_yaw_correction",
+            "schedule_pointing_altitudes",
+            "schedule_description_short",
+            "schedule_description_long",
+        ):
             continue
         if not (matches[column].apply(
-            lambda x: x == matches[column][0])
+            lambda x: repr(x) == repr(matches[column][0]))
         ).all():
             msg = f"column {column} differs for interval"
             raise OverlappingSchedulesError(msg)
@@ -401,7 +412,7 @@ def disambiguate_matches(matches: DataFrame) -> Any:
         msg = "unknown problem for interval"
         raise OverlappingSchedulesError(msg)
 
-    return matches.reset_index()
+    return matches.reset_index(drop=True)
 
 
 def find_match(
@@ -420,9 +431,11 @@ def find_match(
         matches = matches[
             matches["schedule_created_time"]
             == matches["schedule_created_time"].max()
-        ].reset_index()
-        if not (matches[column][0] == matches[column]).all():
-            msg = f"Overlapping schedules for target date {target_date}"
+        ].reset_index(drop=True)
+        if not (matches[column].apply(
+            lambda x: repr(x) == repr(matches[column][0]))
+        ).all():
+            msg = f"Overlapping schedules for target date {target_date} and column ({column})"  # noqa: E501
             try:
                 matches = disambiguate_matches(matches)
                 warnings.warn(msg, OverlappingSchedulesWarning)
