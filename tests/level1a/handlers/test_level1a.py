@@ -354,7 +354,7 @@ def test_disambiguate_matches(csv_data: dict, expected: str):
     matches = disambiguate_matches(dataframe)
     pd.testing.assert_frame_equal(
         matches,
-        dataframe[dataframe["schedule_xml_file"] == expected].reset_index(),
+        dataframe[dataframe["schedule_xml_file"] == expected],
     )
 
 

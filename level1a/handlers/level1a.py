@@ -412,7 +412,7 @@ def disambiguate_matches(matches: DataFrame) -> Any:
         msg = "unknown problem for interval"
         raise OverlappingSchedulesError(msg)
 
-    return matches.reset_index()
+    return matches.reset_index(drop=True)
 
 
 def find_match(
@@ -431,7 +431,7 @@ def find_match(
         matches = matches[
             matches["schedule_created_time"]
             == matches["schedule_created_time"].max()
-        ].reset_index()
+        ].reset_index(drop=True)
         if not (matches[column].apply(
             lambda x: repr(x) == repr(matches[column][0]))
         ).all():
