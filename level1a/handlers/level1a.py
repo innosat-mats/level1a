@@ -425,7 +425,7 @@ def find_match(
     matches = dataframe[
         (dataframe["schedule_start_date"] <= target_date.asm8)
         & (dataframe["schedule_end_date"] >= target_date.floor('s').asm8)
-    ].reset_index()
+    ].reset_index(drop=True)
 
     if len(matches) > 1:
         matches = matches[
