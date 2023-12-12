@@ -49,4 +49,4 @@ def add_ccd_item_attributes(ccd_data: DataFrame) -> None:
     # designed. For now a de facto implementation of
     # get_temperature.add_temperature_info()
     ccd_data["temperature"] = ccd_data["HTR8A"]
-    ccd_data["temperature_HTR"] = ccd_data["HTR8A"]
+    ccd_data["temperature_HTR"] = 0.5 * (ccd_data["HTR8A"] + ccd_data["HTR8B"])
