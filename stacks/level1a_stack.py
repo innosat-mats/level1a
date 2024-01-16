@@ -76,7 +76,7 @@ class Level1AStack(Stack):
             code=DockerImageCode.from_image_asset("."),
             timeout=lambda_timeout,
             architecture=Architecture.X86_64,
-            memory_size=4096,
+            memory_size=2048,
             ephemeral_storage_size=Size.mebibytes(512),
             environment=environment,
         )
