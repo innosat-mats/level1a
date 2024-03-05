@@ -52,15 +52,15 @@ HTR_COLUMNS = [
 ]
 
 PAYLOAD_PARTITIONS = pa.schema([
-    ("year", pa.int16()),
-    ("month", pa.int8()),
-    ("day", pa.int8()),
+    ("year", pa.int32()),
+    ("month", pa.int32()),
+    ("day", pa.int32()),
 ])
 
 PLATFORM_PARTITIONS = pa.schema([
-    ("year", pa.int16()),
-    ("month", pa.int8()),
-    ("day", pa.int8()),
+    ("year", pa.int32()),
+    ("month", pa.int32()),
+    ("day", pa.int32()),
 ])
 
 SCHEDULE_PARTITIONS = pa.schema([
