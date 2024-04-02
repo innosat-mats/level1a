@@ -29,6 +29,7 @@ class Level1AStack(Stack):
         message_attempts: int = 4,
         code_version: str = "",
         development: bool = False,
+        memory_size: int = 1024,
         **kwargs
     ) -> None:
         super().__init__(scope, id, **kwargs)
@@ -76,7 +77,7 @@ class Level1AStack(Stack):
             code=DockerImageCode.from_image_asset("."),
             timeout=lambda_timeout,
             architecture=Architecture.X86_64,
-            memory_size=2048,
+            memory_size=memory_size,
             ephemeral_storage_size=Size.mebibytes(512),
             environment=environment,
         )

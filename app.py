@@ -41,6 +41,7 @@ Level1AStack(
     time_column="EXPDate",
     read_htr=True,
     development=development,
+    memory_size=3072,
 )
 
 Level1AStack(
@@ -55,6 +56,7 @@ Level1AStack(
     time_column="PMTime",
     read_htr=False,
     development=development,
+    memory_size=1764,
 )
 
 app.synth()
