@@ -4,86 +4,96 @@
 #
 #    pip-compile
 #
-attrs==22.1.0
+attrs==23.2.0
     # via
     #   cattrs
     #   jsii
-aws-cdk-asset-awscli-v1==2.2.22
+aws-cdk-asset-awscli-v1==2.2.202
     # via aws-cdk-lib
-aws-cdk-asset-kubectl-v20==2.1.1
+aws-cdk-asset-kubectl-v20==2.1.2
     # via aws-cdk-lib
-aws-cdk-asset-node-proxy-agent-v5==2.0.28
+aws-cdk-asset-node-proxy-agent-v6==2.0.1
     # via aws-cdk-lib
-aws-cdk-aws-lambda-python-alpha==2.53.0a0
+aws-cdk-aws-lambda-python-alpha==2.131.0a0
     # via -r requirements.in
-aws-cdk-lib==2.53.0
+aws-cdk-lib==2.131.0
     # via
     #   -r requirements.in
     #   aws-cdk-aws-lambda-python-alpha
-cattrs==22.2.0
+cattrs==23.2.3
     # via jsii
-certifi==2022.12.7
+certifi==2024.2.2
     # via skyfield
-constructs==10.1.174
+constructs==10.3.0
     # via
     #   aws-cdk-aws-lambda-python-alpha
     #   aws-cdk-lib
-gitdb==4.0.10
+exceptiongroup==1.2.0
+    # via cattrs
+gitdb==4.0.11
     # via gitpython
-gitpython==3.1.30
+gitpython==3.1.42
     # via -r requirements.in
-jplephem==2.18
+importlib-resources==6.1.2
+    # via jsii
+jplephem==2.21
     # via skyfield
-jsii==1.71.0
+jsii==1.95.0
     # via
     #   aws-cdk-asset-awscli-v1
     #   aws-cdk-asset-kubectl-v20
-    #   aws-cdk-asset-node-proxy-agent-v5
+    #   aws-cdk-asset-node-proxy-agent-v6
     #   aws-cdk-aws-lambda-python-alpha
     #   aws-cdk-lib
     #   constructs
-numpy==1.23.5
+numpy==1.26.4
     # via
     #   -r requirements.in
     #   jplephem
     #   pandas
     #   pyarrow
     #   skyfield
-pandas==1.5.2
+pandas==2.2.1
     # via -r requirements.in
 publication==0.0.3
     # via
     #   aws-cdk-asset-awscli-v1
     #   aws-cdk-asset-kubectl-v20
-    #   aws-cdk-asset-node-proxy-agent-v5
+    #   aws-cdk-asset-node-proxy-agent-v6
     #   aws-cdk-aws-lambda-python-alpha
     #   aws-cdk-lib
     #   constructs
     #   jsii
-pyarrow==10.0.1
+pyarrow==15.0.0
     # via -r requirements.in
-python-dateutil==2.8.2
+python-dateutil==2.9.0.post0
     # via
     #   jsii
     #   pandas
-pytz==2022.6
+pytz==2024.1
     # via pandas
-sgp4==2.21
+sgp4==2.23
     # via skyfield
 six==1.16.0
     # via python-dateutil
-skyfield==1.45
+skyfield==1.48
     # via -r requirements.in
-smmap==5.0.0
+smmap==5.0.1
     # via gitdb
 typeguard==2.13.3
     # via
     #   aws-cdk-asset-awscli-v1
     #   aws-cdk-asset-kubectl-v20
-    #   aws-cdk-asset-node-proxy-agent-v5
+    #   aws-cdk-asset-node-proxy-agent-v6
     #   aws-cdk-aws-lambda-python-alpha
     #   aws-cdk-lib
     #   constructs
     #   jsii
-typing-extensions==4.4.0
-    # via jsii
+typing-extensions==4.10.0
+    # via
+    #   cattrs
+    #   jsii
+tzdata==2024.1
+    # via pandas
+zipp==3.17.0
+    # via importlib-resources
