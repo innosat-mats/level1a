@@ -75,7 +75,7 @@ def solar_angles(
         obs_sun = sun_dir.altaz()
         tp_sza = 90 - obs_sun[0].degrees
         tp_ssa = np.rad2deg(np.arccos(
-            np.dot(fov, sun_dir.position.m / norm(sun_dir.position.m))
+            np.dot(-fov, sun_dir.position.m / norm(sun_dir.position.m))
         ))
 
         sun_dir = sat_pos.at(time).observe(sun).apparent()
