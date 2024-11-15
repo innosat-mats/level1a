@@ -41,7 +41,7 @@ Level1AStack(
     time_column="EXPDate",
     read_htr=True,
     development=development,
-    memory_size=3072,
+    memory_size=4096,
 )
 
 Level1AStack(
