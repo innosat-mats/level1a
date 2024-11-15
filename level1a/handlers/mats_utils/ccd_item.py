@@ -13,6 +13,11 @@ channel_num_to_str: Dict[int, str] = {
     7: "NADIR",
 }
 
+channel_to_tempertature: Dict[str, str] = {
+    "UV1": "HTR8B",
+    "UV2": "HTR8A",
+}
+
 
 def add_ccd_item_attributes(ccd_data: DataFrame) -> None:
     """Add some attributes to CCD data that we need.
@@ -48,5 +53,13 @@ def add_ccd_item_attributes(ccd_data: DataFrame) -> None:
     # This needs to be updated when a better temperature estimate has been
     # designed. For now a de facto implementation of
     # get_temperature.add_temperature_info()
-    ccd_data["temperature"] = ccd_data["HTR8A"]
-    ccd_data["temperature_HTR"] = ccd_data["HTR8A"]
+
+    temperatures = [
+        ccd_item[channel_to_tempertature[ccd_item["channel"]]]
+        if ccd_item["channel"].startswith("UV")
+        else (ccd_item["HTR8A"] + ccd_item["HTR8B"]) * 0.5
+        for _, ccd_item in ccd_data.iterrows()
+    ]
+
+    ccd_data["temperature"] = temperatures
+    ccd_data["temperature_HTR"] = 0.5 * (ccd_data["HTR8A"] + ccd_data["HTR8B"])

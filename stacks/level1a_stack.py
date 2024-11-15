@@ -29,6 +29,7 @@ class Level1AStack(Stack):
         message_attempts: int = 4,
         code_version: str = "",
         development: bool = False,
+        memory_size: int = 1024,
         **kwargs
     ) -> None:
         super().__init__(scope, id, **kwargs)
@@ -68,13 +69,15 @@ class Level1AStack(Stack):
         if read_htr:
             environment["HTR_BUCKET"] = rac_bucket_name
 
+        l1a_name = f"Level1ALambda{data_prefix}{'Dev' if development else ''}"
         level1a_lambda = DockerImageFunction(
             self,
-            f"Level1ALambda{data_prefix}{'Dev' if development else ''}",
+            l1a_name,
+            function_name=l1a_name,
             code=DockerImageCode.from_image_asset("."),
             timeout=lambda_timeout,
             architecture=Architecture.X86_64,
-            memory_size=4096,
+            memory_size=memory_size,
             ephemeral_storage_size=Size.mebibytes(512),
             environment=environment,
         )
