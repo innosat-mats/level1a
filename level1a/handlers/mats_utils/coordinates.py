@@ -32,8 +32,9 @@ def eci_to_latlon(
         float:  longitude of satellite (degrees)
         float:  altitude (meters)
     """
-    pos = Geocentric(position_au=Distance(m=eci_pos).au, t=time)
-    lat, lon, alt = pos.frame_latlon(itrs)
+    geocentric_pos = Geocentric(position_au=Distance(m=eci_pos).au, t=time)
+    wgs84_pos = wgs84.geographic_position_of(geocentric_pos)
+    lat, lon, alt = wgs84_pos.frame_latlon(itrs)
     return lat.degrees, lon.degrees, alt.m
 
 
