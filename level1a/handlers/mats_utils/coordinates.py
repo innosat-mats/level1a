@@ -34,8 +34,11 @@ def eci_to_latlon(
     """
     geocentric_pos = Geocentric(position_au=Distance(m=eci_pos).au, t=time)
     wgs84_pos = wgs84.geographic_position_of(geocentric_pos)
-    lat, lon, alt = wgs84_pos.frame_latlon(itrs)
-    return lat.degrees, lon.degrees, alt.m
+    return (
+        wgs84_pos.latitude.degrees,
+        wgs84_pos.longitude.degrees,
+        wgs84_pos.elevation.m,
+    )
 
 
 def solar_angles(
