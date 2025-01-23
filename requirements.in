@@ -1,7 +1,7 @@
 aws-cdk-lib
 aws-cdk.aws-lambda-python-alpha
 pandas
-pyarrow>=14.0.0
+pyarrow
 gitpython
 skyfield
 numpy

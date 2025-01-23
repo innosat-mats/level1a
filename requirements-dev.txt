@@ -1,0 +1,161 @@
+attrs==24.3.0
+    # via
+    #   cattrs
+    #   jsii
+aws-cdk-asset-awscli-v1==2.2.220
+    # via aws-cdk-lib
+aws-cdk-asset-kubectl-v20==2.1.3
+    # via aws-cdk-lib
+aws-cdk-asset-node-proxy-agent-v6==2.1.0
+    # via aws-cdk-lib
+aws-cdk-aws-lambda-python-alpha==2.176.0a0
+    # via -r requirements.in
+aws-cdk-cloud-assembly-schema==39.2.3
+    # via aws-cdk-lib
+aws-cdk-lib==2.176.0
+    # via
+    #   -r requirements.in
+    #   aws-cdk-aws-lambda-python-alpha
+black==24.10.0
+    # via -r requirements-dev.in
+cachetools==5.5.1
+    # via tox
+cattrs==24.1.2
+    # via jsii
+certifi==2024.12.14
+    # via skyfield
+chardet==5.2.0
+    # via tox
+click==8.1.8
+    # via black
+colorama==0.4.6
+    # via tox
+constructs==10.4.2
+    # via
+    #   aws-cdk-aws-lambda-python-alpha
+    #   aws-cdk-lib
+distlib==0.3.9
+    # via virtualenv
+exceptiongroup==1.2.2
+    # via cattrs
+filelock==3.17.0
+    # via
+    #   tox
+    #   virtualenv
+gitdb==4.0.12
+    # via gitpython
+gitpython==3.1.44
+    # via -r requirements.in
+importlib-resources==6.5.2
+    # via jsii
+jplephem==2.22
+    # via skyfield
+jsii==1.106.0
+    # via
+    #   aws-cdk-asset-awscli-v1
+    #   aws-cdk-asset-kubectl-v20
+    #   aws-cdk-asset-node-proxy-agent-v6
+    #   aws-cdk-aws-lambda-python-alpha
+    #   aws-cdk-cloud-assembly-schema
+    #   aws-cdk-lib
+    #   constructs
+mypy==1.14.1
+    # via -r requirements-dev.in
+mypy-extensions==1.0.0
+    # via
+    #   black
+    #   mypy
+numpy==1.26.4
+    # via
+    #   -r level1a/requirements.in
+    #   -r requirements.in
+    #   jplephem
+    #   pandas
+    #   pyarrow
+    #   skyfield
+packaging==24.2
+    # via
+    #   black
+    #   pyproject-api
+    #   tox
+pandas==2.2.1
+    # via
+    #   -r level1a/requirements.in
+    #   -r requirements.in
+pathspec==0.12.1
+    # via black
+platformdirs==4.3.6
+    # via
+    #   black
+    #   tox
+    #   virtualenv
+pluggy==1.5.0
+    # via tox
+publication==0.0.3
+    # via
+    #   aws-cdk-asset-awscli-v1
+    #   aws-cdk-asset-kubectl-v20
+    #   aws-cdk-asset-node-proxy-agent-v6
+    #   aws-cdk-aws-lambda-python-alpha
+    #   aws-cdk-cloud-assembly-schema
+    #   aws-cdk-lib
+    #   constructs
+    #   jsii
+pyarrow==15.0.0
+    # via
+    #   -r level1a/requirements.in
+    #   -r requirements.in
+pyproject-api==1.9.0
+    # via tox
+python-dateutil==2.9.0.post0
+    # via
+    #   -r level1a/requirements.in
+    #   jsii
+    #   pandas
+pytz==2024.1
+    # via
+    #   -r level1a/requirements.in
+    #   pandas
+sgp4==2.23
+    # via skyfield
+six==1.16.0
+    # via
+    #   -r level1a/requirements.in
+    #   python-dateutil
+skyfield==1.48
+    # via
+    #   -r level1a/requirements.in
+    #   -r requirements.in
+smmap==5.0.2
+    # via gitdb
+tomli==2.2.1
+    # via
+    #   black
+    #   mypy
+    #   pyproject-api
+    #   tox
+tox==4.24.1
+    # via -r requirements-dev.in
+typeguard==2.13.3
+    # via
+    #   aws-cdk-asset-awscli-v1
+    #   aws-cdk-asset-kubectl-v20
+    #   aws-cdk-asset-node-proxy-agent-v6
+    #   aws-cdk-aws-lambda-python-alpha
+    #   aws-cdk-cloud-assembly-schema
+    #   aws-cdk-lib
+    #   constructs
+    #   jsii
+typing-extensions==4.12.2
+    # via
+    #   black
+    #   cattrs
+    #   jsii
+    #   mypy
+    #   tox
+tzdata==2025.1
+    # via pandas
+virtualenv==20.29.1
+    # via tox
+zipp==3.21.0
+    # via importlib-resources
