@@ -1,5 +1,5 @@
 from typing import Dict
-from pandas import DataFrame  # type: ignore
+from pandas import DataFrame
 
 
 # Map all channels to string names
@@ -40,8 +40,7 @@ def add_ccd_item_attributes(ccd_data: DataFrame) -> None:
     # CCDitem["id"] should not be needed in operational retrieval. Keeping it
     # because protocol reading / CodeCalibrationReport needs it.  LM220908
     ccd_data["id"] = [
-        f"{nanos}_{ccd}"
-        for nanos, ccd in zip(ccd_data.EXPNanoseconds, ccd_data.CCDSEL)
+        f"{nanos}_{ccd}" for nanos, ccd in zip(ccd_data.EXPNanoseconds, ccd_data.CCDSEL)
     ]
 
     # Add temperature info fom OBC, the temperature info from the rac files are
@@ -55,9 +54,11 @@ def add_ccd_item_attributes(ccd_data: DataFrame) -> None:
     # get_temperature.add_temperature_info()
 
     temperatures = [
-        ccd_item[channel_to_tempertature[ccd_item["channel"]]]
-        if ccd_item["channel"].startswith("UV")
-        else (ccd_item["HTR8A"] + ccd_item["HTR8B"]) * 0.5
+        (
+            ccd_item[channel_to_tempertature[ccd_item["channel"]]]
+            if ccd_item["channel"].startswith("UV")
+            else (ccd_item["HTR8A"] + ccd_item["HTR8B"]) * 0.5
+        )
         for _, ccd_item in ccd_data.iterrows()
     ]
 

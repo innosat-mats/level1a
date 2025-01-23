@@ -71,6 +71,7 @@ numpy==1.26.4
     #   -r requirements.in
     #   jplephem
     #   pandas
+    #   pandas-stubs
     #   pyarrow
     #   skyfield
 packaging==24.2
@@ -82,6 +83,8 @@ pandas==2.2.1
     # via
     #   -r level1a/requirements.in
     #   -r requirements.in
+pandas-stubs==2.2.2.240807
+    # via -r requirements-dev.in
 pathspec==0.12.1
     # via black
 platformdirs==4.3.6
@@ -105,6 +108,8 @@ pyarrow==15.0.0
     # via
     #   -r level1a/requirements.in
     #   -r requirements.in
+pyarrow-stubs==10.0.1.9
+    # via -r requirements-dev.in
 pyproject-api==1.9.0
     # via tox
 python-dateutil==2.9.0.post0
@@ -146,6 +151,8 @@ typeguard==2.13.3
     #   aws-cdk-lib
     #   constructs
     #   jsii
+types-pytz==2024.2.0.20241221
+    # via pandas-stubs
 typing-extensions==4.12.2
     # via
     #   black

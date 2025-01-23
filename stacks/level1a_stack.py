@@ -30,7 +30,7 @@ class Level1AStack(Stack):
         code_version: str = "",
         development: bool = False,
         memory_size: int = 1024,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(scope, id, **kwargs)
 
@@ -96,8 +96,8 @@ class Level1AStack(Stack):
                     "Failed" + queue_name,
                     queue_name="Failed" + queue_name,
                     retention_period=queue_retention_period,
-                )
-            )
+                ),
+            ),
         )
 
         rac_bucket.add_object_created_notification(
@@ -105,10 +105,7 @@ class Level1AStack(Stack):
             NotificationKeyFilter(prefix=data_prefix),
         )
 
-        level1a_lambda.add_event_source(SqsEventSource(
-            event_queue,
-            batch_size=1,
-        ))
+        level1a_lambda.add_event_source(SqsEventSource(event_queue, batch_size=1))
 
         output_bucket.grant_read_write(level1a_lambda)
         rac_bucket.grant_read(level1a_lambda)

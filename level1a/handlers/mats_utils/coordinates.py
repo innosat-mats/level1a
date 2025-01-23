@@ -64,7 +64,7 @@ def solar_angles(
         float:  solar zenith angle at satellite position (degrees)
         float:  solar azimuth angle at nadir imager (degrees)
     """
-    earth, sun = PLANETS['earth'], PLANETS['sun']
+    earth, sun = PLANETS["earth"], PLANETS["sun"]
 
     try:
         sat_pos = earth + wgs84.latlon(sat_lat, sat_lon, elevation_m=sat_alt)
@@ -75,16 +75,16 @@ def solar_angles(
         sun_dir = tp_pos.at(time).observe(sun).apparent()
         obs_sun = sun_dir.altaz()
         tp_sza = 90 - obs_sun[0].degrees
-        tp_ssa = np.rad2deg(np.arccos(
-            np.dot(-fov, sun_dir.position.m / norm(sun_dir.position.m))
-        ))
+        tp_ssa = np.rad2deg(
+            np.arccos(np.dot(-fov, sun_dir.position.m / norm(sun_dir.position.m)))
+        )
 
         sun_dir = sat_pos.at(time).observe(sun).apparent()
         obs_sun = sun_dir.altaz()
         limb_dir = tp_pos.at(time) - sat_pos.at(time)
         obs_limb = limb_dir.altaz()
-        nadir_sza = (90 - obs_sun[0].degrees)
-        nadir_az = (obs_sun[1].degrees - obs_limb[1].degrees)
+        nadir_sza = 90 - obs_sun[0].degrees
+        nadir_az = obs_sun[1].degrees - obs_limb[1].degrees
 
         return tp_sza, tp_ssa, nadir_sza, nadir_az
     except EphemerisRangeError:
@@ -103,8 +103,7 @@ def local_time(time: Time, lon: float) -> str:
     """
     try:
         return (
-            time.utc_datetime()
-            + dt.timedelta(seconds=lon * SECONDS_PER_DEGREE)
-        ).strftime('%H:%M:%S')
+            time.utc_datetime() + dt.timedelta(seconds=lon * SECONDS_PER_DEGREE)
+        ).strftime("%H:%M:%S")
     except ValueError:
         return ""

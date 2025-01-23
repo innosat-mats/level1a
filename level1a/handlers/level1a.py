@@ -8,10 +8,10 @@ from traceback import format_tb
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 import numpy as np
-import pyarrow as pa  # type: ignore
-import pyarrow.dataset as ds  # type: ignore
-import pyarrow.parquet as pq  # type: ignore
-from pandas import (  # type: ignore
+import pyarrow as pa
+import pyarrow.dataset as ds
+import pyarrow.parquet as pq
+from pandas import (
     DataFrame,
     DatetimeIndex,
     Series,
@@ -43,29 +43,34 @@ Context = Any
 
 RETRIES = 5
 OFFSET_FACTOR = 2
-RECONSTRUCTED_FREQUENCY = 1.  # Hz
+RECONSTRUCTED_FREQUENCY = 1.0  # Hz
 HTR_FREQUENCY = 0.1  # Hz
 
 HTR_COLUMNS = [
-    "TMHeaderTime", "HTR1A", "HTR1B", "HTR1OD", "HTR2A", "HTR2B", "HTR2OD",
-    "HTR7A", "HTR7B", "HTR7OD", "HTR8A", "HTR8B", "HTR8OD",
+    "TMHeaderTime",
+    "HTR1A",
+    "HTR1B",
+    "HTR1OD",
+    "HTR2A",
+    "HTR2B",
+    "HTR2OD",
+    "HTR7A",
+    "HTR7B",
+    "HTR7OD",
+    "HTR8A",
+    "HTR8B",
+    "HTR8OD",
 ]
 
-PAYLOAD_PARTITIONS = pa.schema([
-    ("year", pa.int32()),
-    ("month", pa.int32()),
-    ("day", pa.int32()),
-])
+PAYLOAD_PARTITIONS = pa.schema(
+    [("year", pa.int32()), ("month", pa.int32()), ("day", pa.int32())]
+)
 
-PLATFORM_PARTITIONS = pa.schema([
-    ("year", pa.int32()),
-    ("month", pa.int32()),
-    ("day", pa.int32()),
-])
+PLATFORM_PARTITIONS = pa.schema(
+    [("year", pa.int32()), ("month", pa.int32()), ("day", pa.int32())]
+)
 
-SCHEDULE_PARTITIONS = pa.schema([
-    ("created_time", pa.int32()),
-])
+SCHEDULE_PARTITIONS = pa.schema([("created_time", pa.int32())])
 SCHEDULE_BUFFER = Timedelta(seconds=60)
 DUMMY_SCHEDULE: Dict[str, Any] = {
     "schedule_created_time": 0,
@@ -118,19 +123,18 @@ def s3_backoff(caller: Callable):
         msg = ""
         for r in range(RETRIES + 1):
             try:
-                sleep(2 ** r - 1)
+                sleep(2**r - 1)
                 return caller(*args, **kwargs)
             except Exception as err:
                 msg = str(err)
         raise RetriesExceeded(msg)
+
     return wrapper
 
 
 def get_or_raise(variable_name: str) -> str:
     if (var := os.environ.get(variable_name)) is None:
-        raise EnvironmentError(
-            f"{variable_name} is a required environment variable"
-        )
+        raise EnvironmentError(f"{variable_name} is a required environment variable")
     return var
 
 
@@ -149,11 +153,7 @@ def covers(
     first: Timestamp,
     last: Timestamp,
 ) -> bool:
-    return (
-        len(indices) != 0
-        and first >= indices.min()
-        and last <= indices.max()
-    )
+    return len(indices) != 0 and first >= indices.min() and last <= indices.max()
 
 
 @s3_backoff
@@ -179,16 +179,20 @@ def get_mats_schedule_records(
     max_time: Timestamp,
     filesystem: pa.fs.FileSystem = None,
 ) -> DataFrame:
-    dataset = ds.dataset(
-        path_or_bucket,
-        filesystem=filesystem,
-        partitioning=ds.partitioning(SCHEDULE_PARTITIONS, flavor="filename"),
-    ).to_table(
-        filter=(
-            (ds.field("start_date") <= max_time.asm8)
-            & (ds.field("end_date") >= min_time.asm8)
+    dataset = (
+        ds.dataset(
+            path_or_bucket,
+            filesystem=filesystem,
+            partitioning=ds.partitioning(SCHEDULE_PARTITIONS, flavor="filename"),
         )
-    ).to_pandas()
+        .to_table(
+            filter=(
+                (ds.field("start_date") <= max_time.asm8)
+                & (ds.field("end_date") >= min_time.asm8)
+            )
+        )
+        .to_pandas()
+    )
     new_columns = {c: f"schedule_{c}" for c in dataset.columns}
     dataset.rename(columns=new_columns, inplace=True)
     return dataset
@@ -201,44 +205,52 @@ def get_htr_records(
     max_time: Timestamp,
     filesystem: pa.fs.FileSystem = None,
 ) -> DataFrame:
-    dataset = ds.dataset(
-        path_or_bucket,
-        filesystem=filesystem,
-        partitioning=ds.partitioning(PAYLOAD_PARTITIONS),
-    ).to_table(
-        filter=(
-            (ds.field('year') >= min_time.year)
-            & (ds.field('year') <= max_time.year)
-            & (
-                (
-                    (ds.field('month') >= min_time.month)
-                    & (ds.field('month') <= max_time.month)
-                ) | (
-                    (ds.field('year') == min_time.year)
-                    & (ds.field('month') >= min_time.month)
-                ) | (
-                    (ds.field('year') == max_time.year)
-                    & (ds.field('month') <= max_time.month)
+    dataset = (
+        ds.dataset(
+            path_or_bucket,
+            filesystem=filesystem,
+            partitioning=ds.partitioning(PAYLOAD_PARTITIONS),
+        )
+        .to_table(
+            filter=(
+                (ds.field("year") >= min_time.year)
+                & (ds.field("year") <= max_time.year)
+                & (
+                    (
+                        (ds.field("month") >= min_time.month)
+                        & (ds.field("month") <= max_time.month)
+                    )
+                    | (
+                        (ds.field("year") == min_time.year)
+                        & (ds.field("month") >= min_time.month)
+                    )
+                    | (
+                        (ds.field("year") == max_time.year)
+                        & (ds.field("month") <= max_time.month)
+                    )
                 )
-            )
-            & (
-                (
-                    (ds.field('day') >= min_time.day)
-                    & (ds.field('day') <= max_time.day)
-                ) | (
-                    (ds.field('month') == min_time.month)
-                    & (ds.field('day') >= min_time.day)
-                ) | (
-                    (ds.field('month') == max_time.month)
-                    & (ds.field('day') <= max_time.day)
+                & (
+                    (
+                        (ds.field("day") >= min_time.day)
+                        & (ds.field("day") <= max_time.day)
+                    )
+                    | (
+                        (ds.field("month") == min_time.month)
+                        & (ds.field("day") >= min_time.day)
+                    )
+                    | (
+                        (ds.field("month") == max_time.month)
+                        & (ds.field("day") <= max_time.day)
+                    )
                 )
-            )
-        ),
-        columns=HTR_COLUMNS,
-    ).to_pandas().drop_duplicates("TMHeaderTime")
+            ),
+            columns=HTR_COLUMNS,
+        )
+        .to_pandas()
+        .drop_duplicates("TMHeaderTime")
+    )
     dataset = dataset[
-        (dataset["TMHeaderTime"] >= min_time)
-        & (dataset["TMHeaderTime"] <= max_time)
+        (dataset["TMHeaderTime"] >= min_time) & (dataset["TMHeaderTime"] <= max_time)
     ]
     dataset = dataset.set_index("TMHeaderTime").sort_index()
     return dataset
@@ -251,62 +263,72 @@ def get_reconstructed_records(
     max_time: Timestamp,
     filesystem: pa.fs.FileSystem = None,
 ) -> DataFrame:
-    dataset = ds.dataset(
-        path_or_bucket,
-        filesystem=filesystem,
-        schema=pa.schema([
-            ("time", pa.timestamp('ns')),
-            ("afsAttitudeState", pa.list_(pa.float64())),
-            ("afsGnssStateJ2000", pa.list_(pa.float64())),
-            ("afsTPLongLatGeod", pa.list_(pa.float64())),
-            ("afsTangentH_wgs84", pa.list_(pa.float64())),
-            ("afsTangentPointECI", pa.list_(pa.float64())),
-            ("year", pa.int16()),
-            ("month", pa.int8()),
-            ("day", pa.int8()),
-        ]),
-        partitioning=ds.partitioning(PLATFORM_PARTITIONS),
-    ).to_table(filter=(
-        (ds.field('year') >= min_time.year)
-        & (ds.field('year') <= max_time.year)
-        & (
-            (
-                (ds.field('month') >= min_time.month)
-                & (ds.field('month') <= max_time.month)
-            ) | (
-                (ds.field('year') == min_time.year)
-                & (ds.field('month') >= min_time.month)
-            ) | (
-                (ds.field('year') == max_time.year)
-                & (ds.field('month') <= max_time.month)
+    dataset = (
+        ds.dataset(
+            path_or_bucket,
+            filesystem=filesystem,
+            schema=pa.schema(
+                [
+                    ("time", pa.timestamp("ns")),
+                    ("afsAttitudeState", pa.list_(pa.float64())),
+                    ("afsGnssStateJ2000", pa.list_(pa.float64())),
+                    ("afsTPLongLatGeod", pa.list_(pa.float64())),
+                    ("afsTangentH_wgs84", pa.list_(pa.float64())),
+                    ("afsTangentPointECI", pa.list_(pa.float64())),
+                    ("year", pa.int16()),
+                    ("month", pa.int8()),
+                    ("day", pa.int8()),
+                ]
+            ),
+            partitioning=ds.partitioning(PLATFORM_PARTITIONS),
+        )
+        .to_table(
+            filter=(
+                (ds.field("year") >= min_time.year)
+                & (ds.field("year") <= max_time.year)
+                & (
+                    (
+                        (ds.field("month") >= min_time.month)
+                        & (ds.field("month") <= max_time.month)
+                    )
+                    | (
+                        (ds.field("year") == min_time.year)
+                        & (ds.field("month") >= min_time.month)
+                    )
+                    | (
+                        (ds.field("year") == max_time.year)
+                        & (ds.field("month") <= max_time.month)
+                    )
+                )
+                & (
+                    (
+                        (ds.field("day") >= min_time.day)
+                        & (ds.field("day") <= max_time.day)
+                    )
+                    | (
+                        (ds.field("month") == min_time.month)
+                        & (ds.field("day") >= min_time.day)
+                    )
+                    | (
+                        (ds.field("month") == max_time.month)
+                        & (ds.field("day") <= max_time.day)
+                    )
+                )
             )
         )
-        & (
-            (
-                (ds.field('day') >= min_time.day)
-                & (ds.field('day') <= max_time.day)
-            ) | (
-                (ds.field('month') == min_time.month)
-                & (ds.field('day') >= min_time.day)
-            ) | (
-                (ds.field('month') == max_time.month)
-                & (ds.field('day') <= max_time.day)
-            )
-        )
-    )).to_pandas().drop_duplicates("time")
+        .to_pandas()
+        .drop_duplicates("time")
+    )
     dataset = dataset[
-        (dataset["time"] >= min_time.asm8)
-        & (dataset["time"] <= max_time.asm8)
+        (dataset["time"] >= min_time.asm8) & (dataset["time"] <= max_time.asm8)
     ]
     dataset = dataset.set_index("time").sort_index()
-    dataset.index = dataset.index.tz_localize('utc')
+    dataset.index = dataset.index.tz_localize("utc")
     dataset.drop(columns=["year", "month", "day"], inplace=True)
     return dataset
 
 
-def get_search_bounds(
-    timeinds: DatetimeIndex
-) -> Tuple[Timestamp, Timestamp]:
+def get_search_bounds(timeinds: DatetimeIndex) -> Tuple[Timestamp, Timestamp]:
     return timeinds.min(), timeinds.max()
 
 
@@ -332,18 +354,15 @@ def interp_to(
     column: Series,
     max_diff: Optional[Timedelta] = None,
 ) -> np.ndarray:
-    before = column.index.get_indexer([target_date], method='ffill')[0]
-    after = column.index.get_indexer([target_date], method='bfill')[0]
+    before = column.index.get_indexer([target_date], method="ffill")[0]
+    after = column.index.get_indexer([target_date], method="bfill")[0]
 
     if (before < 0 or after < 0) or (before > after):
         return column.iloc[0] * np.nan
 
     timestamps = column.index[[before, after]]
 
-    if (
-        max_diff is not None
-        and np.diff(timestamps)[0] > max_diff
-    ):
+    if max_diff is not None and np.diff(timestamps)[0] > max_diff:
         return column.iloc[0] * np.nan
 
     return interp_array(
@@ -358,10 +377,13 @@ def interpolate(
     target: DatetimeIndex,
     max_diff: Optional[Timedelta] = None,
 ) -> DataFrame:
-    return DataFrame({
-        column: [interp_to(ind, dataframe[column], max_diff) for ind in target]
-        for column in dataframe
-    }, index=target)
+    return DataFrame(
+        {
+            column: [interp_to(ind, dataframe[column], max_diff) for ind in target]
+            for column in dataframe
+        },
+        index=target,
+    )
 
 
 def disambiguate_matches(matches: DataFrame) -> Any:
@@ -379,8 +401,8 @@ def disambiguate_matches(matches: DataFrame) -> Any:
             "schedule_description_long",
         ):
             continue
-        if not (matches[column].apply(
-            lambda x: repr(x) == repr(matches[column][0]))
+        if not (
+            matches[column].apply(lambda x: repr(x) == repr(matches[column][0]))
         ).all():
             msg = f"column {column} differs for interval"
             raise OverlappingSchedulesError(msg)
@@ -390,9 +412,9 @@ def disambiguate_matches(matches: DataFrame) -> Any:
     versions: Set[str] = set()
     for data in matches["schedule_xml_file"]:
         temp = data.split("_")[1]
-        execution_dates = execution_dates.union({temp[0: 6]})
-        generation_dates = generation_dates.union({temp[6: 12]})
-        versions = versions.union({temp[12: 14]})
+        execution_dates = execution_dates.union({temp[0:6]})
+        generation_dates = generation_dates.union({temp[6:12]})
+        versions = versions.union({temp[12:14]})
 
     if len(execution_dates) != 1:
         msg = f"execution dates differ for interval: {execution_dates}"
@@ -424,16 +446,15 @@ def find_match(
     target_date.floor
     matches = dataframe[
         (dataframe["schedule_start_date"] <= target_date.asm8)
-        & (dataframe["schedule_end_date"] >= target_date.floor('s').asm8)
+        & (dataframe["schedule_end_date"] >= target_date.floor("s").asm8)
     ].reset_index(drop=True)
 
     if len(matches) > 1:
         matches = matches[
-            matches["schedule_created_time"]
-            == matches["schedule_created_time"].max()
+            matches["schedule_created_time"] == matches["schedule_created_time"].max()
         ].reset_index(drop=True)
-        if not (matches[column].apply(
-            lambda x: repr(x) == repr(matches[column][0]))
+        if not (
+            matches[column].apply(lambda x: repr(x) == repr(matches[column][0]))
         ).all():
             msg = f"Overlapping schedules for target date {target_date} and column ({column})"  # noqa: E501
             try:
@@ -461,13 +482,13 @@ def match_with_schedule(
     target: DatetimeIndex,
     buffer: Optional[Timedelta] = None,
 ) -> DataFrame:
-    return DataFrame({
-        column: [
-            find_match(ind, column, dataframe, buffer)
-            for ind in target
-        ]
-        for column in dataframe
-    }, index=target)
+    return DataFrame(
+        {
+            column: [find_match(ind, column, dataframe, buffer) for ind in target]
+            for column in dataframe
+        },
+        index=target,
+    )
 
 
 def add_satellite_position_data(
@@ -498,8 +519,12 @@ def add_satellite_position_data(
     dataframe[["TPsza", "TPssa", "nadir_sza", "nadir_az"]] = dataframe.apply(
         lambda s: solar_angles(
             timescale.from_datetime(s[index].to_pydatetime()),
-            s.satlat, s.satlon, s.satheight,
-            s.TPlat, s.TPlon, s.TPheight,
+            s.satlat,
+            s.satlon,
+            s.satheight,
+            s.TPlat,
+            s.TPlon,
+            s.TPheight,
         ),
         axis=1,
         result_type="expand",
@@ -542,7 +567,7 @@ def lambda_handler(event: Event, context: Context):
         code_version = get_or_raise("L1A_VERSION")
         data_prefix = get_or_raise("DATA_PREFIX")
         time_column = get_or_raise("TIME_COLUMN")
-        region = os.environ.get('AWS_REGION', "eu-north-1")
+        region = os.environ.get("AWS_REGION", "eu-north-1")
         htr_bucket = os.environ.get("HTR_BUCKET", None)
         s3 = pa.fs.S3FileSystem(region=region)
 
@@ -551,20 +576,22 @@ def lambda_handler(event: Event, context: Context):
             output_path = object_path.strip(f"/{data_prefix}")
         except InvalidMessage:
             return {
-                'statusCode': HTTPStatus.NO_CONTENT,
-                'headers': {'Content-Type': 'application/json'},
-                'body': json.dumps({
-                    'message': 'Failed to parse event, nothing to do.'
-                })
+                "statusCode": HTTPStatus.NO_CONTENT,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps(
+                    {"message": "Failed to parse event, nothing to do."}
+                ),
             }
 
         if not object_path.endswith(".parquet"):
             return {
-                'statusCode': HTTPStatus.NO_CONTENT,
-                'headers': {'Content-Type': 'application/json'},
-                'body': json.dumps({
-                    'message': f'{object_path} is not a parquet file, nothing to do.'  # noqa: E501
-                })
+                "statusCode": HTTPStatus.NO_CONTENT,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps(
+                    {
+                        "message": f"{object_path} is not a parquet file, nothing to do."  # noqa: E501
+                    }
+                ),
             }
 
         rac_df, metadata = get_level0_records(
@@ -572,12 +599,14 @@ def lambda_handler(event: Event, context: Context):
             index=time_column,
             filesystem=s3,
         )
-        metadata.update({
-            "L1ACode": code_version,
-            "DataLevel": "L1A",
-            "L1ADataBucket": output_bucket,
-            "L1ADataPath": output_path,
-        })
+        metadata.update(
+            {
+                "L1ACode": code_version,
+                "DataLevel": "L1A",
+                "L1ADataBucket": output_bucket,
+                "L1ADataPath": output_path,
+            }
+        )
         if "CODE" in metadata.keys():
             metadata["RACCode"] = metadata.pop("CODE")
         elif b"CODE" in metadata.keys():
@@ -589,7 +618,7 @@ def lambda_handler(event: Event, context: Context):
 
         min_time, max_time = get_search_bounds(rac_df.index)
     except Exception as err:
-        tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
+        tb = "|".join(format_tb(err.__traceback__)).replace("\n", ";")
         msg = f"Failed to initialize handler: {err} ({type(err)}; {tb})"
         raise Level1AException(msg)
 
@@ -614,7 +643,7 @@ def lambda_handler(event: Event, context: Context):
             index=time_column,
         )
     except Exception as err:
-        tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
+        tb = "|".join(format_tb(err.__traceback__)).replace("\n", ";")
         msg = f"Failed to get reconstructed data for {output_path} with start time {min_time} and end time {max_time}: {err} ({type(err)}; {tb})"  # noqa: E501
         raise Level1AException(msg)
 
@@ -631,7 +660,7 @@ def lambda_handler(event: Event, context: Context):
             buffer=SCHEDULE_BUFFER,
         )
     except Exception as err:
-        tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
+        tb = "|".join(format_tb(err.__traceback__)).replace("\n", ";")
         msg = f"Failed to get schedule data for {output_path} with start time {min_time} and end time {max_time}: {err} ({type(err)}; {tb})"  # noqa: E501
         raise Level1AException(msg)
 
@@ -649,7 +678,7 @@ def lambda_handler(event: Event, context: Context):
                 max_diff=get_offset(HTR_FREQUENCY),
             )
         except Exception as err:
-            tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
+            tb = "|".join(format_tb(err.__traceback__)).replace("\n", ";")
             msg = f"Failed to get HTR data for {output_path} with start time {min_time} and end time {max_time}: {err} ({type(err)}; {tb})"  # noqa: E501
             raise Level1AException(msg)
 
@@ -662,21 +691,23 @@ def lambda_handler(event: Event, context: Context):
         if data_prefix == "CCD":
             add_ccd_item_attributes(merged)
         for key, val in metadata.items():
-            merged[
-                key if isinstance(key, str) else key.decode()
-            ] = val if isinstance(val, str) else val.decode()
+            merged[key if isinstance(key, str) else key.decode()] = (
+                val if isinstance(val, str) else val.decode()
+            )
         out_table = pa.Table.from_pandas(merged)
-        out_table = out_table.replace_schema_metadata({
-            **metadata,
-        })
+        out_table = out_table.replace_schema_metadata(
+            {
+                **metadata,
+            }
+        )
 
         pq.write_table(
             out_table,
             f"{output_bucket}/{output_path}",
             filesystem=s3,
-            version='2.6',
+            version="2.6",
         )
     except Exception as err:
-        tb = '|'.join(format_tb(err.__traceback__)).replace('\n', ';')
+        tb = "|".join(format_tb(err.__traceback__)).replace("\n", ";")
         msg = f"Failed to store {output_path} with start time {min_time} and end time {max_time}: {err} ({type(err)}; {tb})"  # noqa: E501
         raise Level1AException(msg)

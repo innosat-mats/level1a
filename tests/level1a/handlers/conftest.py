@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest  # type: ignore
 
-from pandas import DataFrame, Timestamp  # type: ignore
+from pandas import DataFrame, Timestamp
 
 
 @pytest.fixture
@@ -22,7 +22,15 @@ def platform_dir(data_dir: Path) -> Path:
 
 @pytest.fixture
 def ccd_path(rac_dir: Path) -> Path:
-    return rac_dir / "CCD" / "2022" / "12" / "21" / "23" / "MATS_OPS_Level0_VC1_APID100_20221221-132606_20221222-133247.parquet"  # noqa: E501
+    return (
+        rac_dir
+        / "CCD"
+        / "2022"
+        / "12"
+        / "21"
+        / "23"
+        / "MATS_OPS_Level0_VC1_APID100_20221221-132606_20221222-133247.parquet"
+    )
 
 
 @pytest.fixture
@@ -45,24 +53,24 @@ def schedule() -> DataFrame:
     return DataFrame(
         {
             "schedule_start_date": [
-                Timestamp('1978-03-08 22:30:00.0'),
-                Timestamp('1978-03-15 22:30:00.0'),
-                Timestamp('1978-03-22 22:30:00.0'),
-                Timestamp('1978-03-29 22:30:00.0'),
-                Timestamp('1978-04-05 22:30:00.0'),
-                Timestamp('1978-04-12 22:30:00.0'),
-                Timestamp('2010-10-10 09:00:00.0'),
-                Timestamp('2010-10-10 10:00:00.0'),
+                Timestamp("1978-03-08 22:30:00.0"),
+                Timestamp("1978-03-15 22:30:00.0"),
+                Timestamp("1978-03-22 22:30:00.0"),
+                Timestamp("1978-03-29 22:30:00.0"),
+                Timestamp("1978-04-05 22:30:00.0"),
+                Timestamp("1978-04-12 22:30:00.0"),
+                Timestamp("2010-10-10 09:00:00.0"),
+                Timestamp("2010-10-10 10:00:00.0"),
             ],
             "schedule_end_date": [
-                Timestamp('1978-03-08 23:00:00.0'),
-                Timestamp('1978-03-15 23:00:00.0'),
-                Timestamp('1978-03-22 23:00:00.0'),
-                Timestamp('1978-03-29 23:00:00.0'),
-                Timestamp('1978-04-05 23:00:00.0'),
-                Timestamp('1978-04-12 23:00:00.0'),
-                Timestamp('2010-10-10 11:00:00.0'),
-                Timestamp('2010-10-10 12:00:00.0'),
+                Timestamp("1978-03-08 23:00:00.0"),
+                Timestamp("1978-03-15 23:00:00.0"),
+                Timestamp("1978-03-22 23:00:00.0"),
+                Timestamp("1978-03-29 23:00:00.0"),
+                Timestamp("1978-04-05 23:00:00.0"),
+                Timestamp("1978-04-12 23:00:00.0"),
+                Timestamp("2010-10-10 11:00:00.0"),
+                Timestamp("2010-10-10 12:00:00.0"),
             ],
             "schedule_created_time": [0, 0, 0, 0, 0, 0, 0, 0],
             "Answer": [39, 40, 41, 42, 43, 44, -1, -2],
