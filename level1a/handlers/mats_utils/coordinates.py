@@ -6,7 +6,6 @@ from numpy.linalg import norm
 from skyfield.api import load, wgs84, Time  # type: ignore
 from skyfield.errors import EphemerisRangeError  # type: ignore
 from skyfield.positionlib import Geocentric  # type: ignore
-from skyfield.framelib import itrs  # type: ignore
 from skyfield.units import Distance  # type: ignore
 import numpy as np
 
@@ -32,9 +31,13 @@ def eci_to_latlon(
         float:  longitude of satellite (degrees)
         float:  altitude (meters)
     """
-    pos = Geocentric(position_au=Distance(m=eci_pos).au, t=time)
-    lat, lon, alt = pos.frame_latlon(itrs)
-    return lat.degrees, lon.degrees, alt.m
+    geocentric_pos = Geocentric(position_au=Distance(m=eci_pos).au, t=time)
+    wgs84_pos = wgs84.geographic_position_of(geocentric_pos)
+    return (
+        wgs84_pos.latitude.degrees,
+        wgs84_pos.longitude.degrees,
+        wgs84_pos.elevation.m,
+    )
 
 
 def solar_angles(
