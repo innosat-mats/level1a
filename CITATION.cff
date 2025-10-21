@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+title: MATS satellite level 0 to 1a software
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Christensen
+    given-names: Ole Martin
+    orcid: https://orcid.org/0000-0002-2454-549X
+  - given-names: Joakim
+    family-names: Möller
+    orcid: https://orcid.org/0009-0007-5394-7432
+  - given-names: Ida-Sofia
+    family-names: https://orcid.org/0000-0002-2221-4048
+  - given-names: Erik
+    family-names: Noreklint
+doi: 10.5281/zenodo.17398206
+license: MIT
+repository-code: "https://github.com/innosat-mats/level1a"
