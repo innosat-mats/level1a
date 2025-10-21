@@ -1,4 +1,4 @@
-from aws_cdk import Duration, RemovalPolicy, Size, Stack
+from aws_cdk import Duration, Size, Stack
 from aws_cdk.aws_lambda import (
     Architecture,
     DockerImageCode,
@@ -88,7 +88,6 @@ class Level1AStack(Stack):
             queue_name,
             queue_name=queue_name,
             visibility_timeout=message_timeout,
-            # removal_policy=RemovalPolicy.RETAIN,
             dead_letter_queue=DeadLetterQueue(
                 max_receive_count=message_attempts,
                 queue=Queue(
