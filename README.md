@@ -3,7 +3,7 @@
 ## Deployments status
 [![DOI](https://zenodo.org/badge/565748106.svg)](https://zenodo.org/badge/latestdoi/565748106)
 ![CI](https://github.com/innosat-mats/level1a/actions/workflows/ci.yml/badge.svg?branch=deploy)
-![CD](https://github.com/innosat-mats/level1a/actions/workflows/cd.yml/badge.svg?event=)
+![CD](https://github.com/innosat-mats/level1a/actions/workflows/cd.yml/badge.svg)
 
 
 ## Overview
